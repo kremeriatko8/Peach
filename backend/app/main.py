@@ -1,13 +1,8 @@
-from typing import TYPE_CHECKING
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.config import get_settings
-
-if TYPE_CHECKING:
-    import pathlib
 
 
 def create_app() -> FastAPI:
