@@ -42,25 +42,58 @@ if [[ -z "${REPO}" ]]; then
   # Both git@github.com:owner/repo.git and https://github.com/owner/repo.git
   REPO="$(printf '%s' "${ORIGIN}" | sed -E 's#^.*github\.com[:/]##; s#\.git$##')"
 fi
-[[ "${REPO}" == */* ]] || die "could not work out the repo - set GITHUB_REPO=owner/repo in .env"
+[[ "${REPO}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
+  || die "could not work out the repo - set GITHUB_REPO=owner/repo in .env"
 
 SUBJECT_CLAIM="${GITHUB_SUBJECT_CLAIM:-ref:refs/heads/main}"
+[[ "${SUBJECT_CLAIM}" == "ref:refs/heads/main" ]] || die "deployment trust must be restricted to main"
+
+# Ask GitHub for the actual prefix, including immutable IDs when enabled.
+# Never guess based on creation date, or trust both old and new subjects.
+command -v python3 >/dev/null 2>&1 || die "python3 is required"
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  OIDC_CONFIG="$(gh api "repos/${REPO}/actions/oidc/customization/sub")"
+else
+  command -v curl >/dev/null 2>&1 || die "curl is required (or authenticated gh)"
+  OIDC_CONFIG="$(curl --fail --silent --show-error \
+    "https://api.github.com/repos/${REPO}/actions/oidc/customization/sub")"
+fi
+SUBJECT_PREFIX="$(printf '%s' "${OIDC_CONFIG}" | python3 -c '
+import json, re, sys
+config = json.load(sys.stdin)
+prefix = config.get("sub_claim_prefix", "")
+match = re.fullmatch(r"repo:([A-Za-z0-9_.-]+)(@[0-9]+)?/([A-Za-z0-9_.-]+)(@[0-9]+)?", prefix)
+if (config.get("use_default") is not True or not match
+        or f"{match[1]}/{match[3]}" != sys.argv[1]):
+    sys.exit("Unsupported or mismatched GitHub OIDC configuration; refusing to change trust")
+print(prefix)
+' "${REPO}")"
 
 log "repository ${REPO}"
-log "trusting only runs matching repo:${REPO}:${SUBJECT_CLAIM}"
+log "trusting only ${SUBJECT_PREFIX}:${SUBJECT_CLAIM}"
 
 # --- the account may already have a GitHub provider ---------------------------
 
-# IAM allows exactly one provider per issuer URL, so creating a second fails.
-EXISTING_PROVIDER="$(aws iam list-open-id-connect-providers \
-  --query "OpenIDConnectProviderList[?contains(Arn, 'token.actions.githubusercontent.com')]|[0].Arn" \
-  --output text 2>/dev/null || true)"
-[[ "${EXISTING_PROVIDER}" == "None" ]] && EXISTING_PROVIDER=""
+# Preserve the stack's original ownership choice. Rediscovering its own provider
+# as "external" would make CreateProvider false and delete that provider on update.
+if EXISTING_PROVIDER="$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" \
+  --query "Stacks[0].Parameters[?ParameterKey=='ExistingProviderArn'].ParameterValue | [0]" \
+  --output text 2>&1)"; then
+  [[ "${EXISTING_PROVIDER}" != "None" ]] || die "stack is missing ExistingProviderArn parameter"
+elif [[ "${EXISTING_PROVIDER}" == *"(ValidationError)"* && "${EXISTING_PROVIDER}" == *"does not exist"* ]]; then
+  # Only a new stack discovers providers that were created elsewhere.
+  EXISTING_PROVIDER="$(aws iam list-open-id-connect-providers \
+    --query "OpenIDConnectProviderList[?ends_with(Arn, '/token.actions.githubusercontent.com')]|[0].Arn" \
+    --output text)"
+  [[ "${EXISTING_PROVIDER}" == "None" ]] && EXISTING_PROVIDER=""
+else
+  die "cannot inspect existing stack: ${EXISTING_PROVIDER}"
+fi
 
 if [[ -n "${EXISTING_PROVIDER}" ]]; then
   log "reusing the GitHub OIDC provider already in this account"
 else
-  log "this account has no GitHub OIDC provider yet - the stack creates one"
+  log "the stack creates or continues managing the GitHub OIDC provider"
 fi
 
 # --- deploy -------------------------------------------------------------------
@@ -71,6 +104,7 @@ if ! aws cloudformation deploy \
   --parameter-overrides \
     "ProjectName=${PROJECT_NAME}" \
     "GitHubRepo=${REPO}" \
+    "GitHubSubjectPrefix=${SUBJECT_PREFIX}" \
     "SubjectClaim=${SUBJECT_CLAIM}" \
     "ExistingProviderArn=${EXISTING_PROVIDER}" \
   --capabilities CAPABILITY_NAMED_IAM \

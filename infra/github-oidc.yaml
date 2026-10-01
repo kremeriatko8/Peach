@@ -19,13 +19,16 @@ Parameters:
     Description: owner/repo, e.g. dobosevych/Peach
     AllowedPattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
 
+  GitHubSubjectPrefix:
+    Type: String
+    Description: Exact sub_claim_prefix returned by GitHub's repository OIDC API.
+    AllowedPattern: "^repo:[A-Za-z0-9_.-]+(@[0-9]+)?/[A-Za-z0-9_.-]+(@[0-9]+)?$"
+
   SubjectClaim:
     Type: String
     Default: "ref:refs/heads/main"
-    Description: >-
-      Which workflow runs may assume the role. The default allows only runs on
-      main. "*" would allow any branch and any pull request of the repo, which
-      means anyone who can open a PR can deploy.
+    AllowedValues: ["ref:refs/heads/main"]
+    Description: Deployment is restricted to the main branch.
 
   ExistingProviderArn:
     Type: String
@@ -77,9 +80,8 @@ Resources:
               StringEquals:
                 # Without the audience check any OIDC token would do.
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-              StringLike:
                 # And without this, any repository on GitHub would do.
-                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubRepo}:${SubjectClaim}"
+                token.actions.githubusercontent.com:sub: !Sub "${GitHubSubjectPrefix}:${SubjectClaim}"
       Policies:
         # Deliberately not AdministratorAccess. Scoped to the services the
         # deploy actually drives, and to this project's names where the API
@@ -216,7 +218,7 @@ Outputs:
 
   Subject:
     Description: The only OIDC subject allowed to assume the role.
-    Value: !Sub "repo:${GitHubRepo}:${SubjectClaim}"
+    Value: !Sub "${GitHubSubjectPrefix}:${SubjectClaim}"
 
   ProviderArn:
     Value: !If
