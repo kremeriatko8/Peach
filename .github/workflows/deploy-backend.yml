@@ -1,7 +1,6 @@
 name: Deploy backend
 
-# Write "deploy" in a commit message on main and this ships the backend.
-# Nothing else on main triggers it, so ordinary commits stay cheap.
+# Deploy on every push to main or manual dispatch.
 on:
   push:
     branches: [main]
@@ -16,11 +15,6 @@ concurrency:
 jobs:
   deploy:
     name: Lambda
-    # GitHub compares strings case-insensitively, so "Deploy" and "redeployed"
-    # match too. Manual runs skip the check entirely.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.message, 'deploy')
     runs-on: ubuntu-latest
     permissions:
       # Required to fetch the OIDC token that AWS trades for the role. The job
