@@ -1,0 +1,204 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+  Peach authentication: an email-based user pool, public OAuth code-flow app
+  client, Cognito prefix domain with Managed Login v2, and default branding.
+  Google federation is enabled when both Google credentials are supplied.
+  Prepared locally; deploying this template is a separate, explicit action.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: peach
+
+  CognitoDomainPrefix:
+    Type: String
+    Default: peach-auth-diby4tampbgny
+    MinLength: 1
+    MaxLength: 63
+    AllowedPattern: "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+    Description: >-
+      Unique Cognito prefix domain, not a custom DNS name. Availability must
+      be confirmed during a future deployment; changing this changes Google URLs.
+
+  FrontendOrigin:
+    Type: String
+    Default: https://diby4tampbgny.cloudfront.net
+    AllowedPattern: "^https://[A-Za-z0-9.-]+(:[0-9]+)?$"
+    Description: >-
+      Deployed frontend HTTPS origin without a trailing slash. A future deploy
+      script should supply SiteUrl from the frontend CloudFormation stack.
+
+  LocalhostOrigin:
+    Type: String
+    Default: http://localhost:3000
+    AllowedPattern: "^http://localhost:[0-9]+$"
+    Description: Local frontend origin without a trailing slash; match FRONTEND_PORT.
+
+  GoogleClientId:
+    Type: String
+    Default: ""
+    Description: Google OAuth web client ID; leave both Google parameters empty initially.
+
+  GoogleClientSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: >-
+      Google OAuth secret from gitignored .env. Supply securely as a parameter;
+      never put it in outputs, source control, logs, or frontend environment variables.
+
+Rules:
+  GoogleCredentialsTogether:
+    Assertions:
+      - Assert:
+          Fn::Or:
+            - Fn::And:
+                - Fn::Equals: [!Ref GoogleClientId, ""]
+                - Fn::Equals: [!Ref GoogleClientSecret, ""]
+            - Fn::And:
+                - Fn::Not:
+                    - Fn::Equals: [!Ref GoogleClientId, ""]
+                - Fn::Not:
+                    - Fn::Equals: [!Ref GoogleClientSecret, ""]
+        AssertDescription: Supply both Google credentials, or leave both empty.
+
+Conditions:
+  HasGoogleCredentials: !And
+    - !Not [!Equals [!Ref GoogleClientId, ""]]
+    - !Not [!Equals [!Ref GoogleClientSecret, ""]]
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${ProjectName}-users"
+      # Managed Login v2 requires Essentials or Plus; do not use the Lite tier.
+      UserPoolTier: ESSENTIALS
+      UsernameAttributes: [email]
+      UsernameConfiguration:
+        CaseSensitive: false
+      AutoVerifiedAttributes: [email]
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      MfaConfiguration: "OFF"
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+      UserPoolTags:
+        PROJECT_NAME: !Ref ProjectName
+
+  GoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: HasGoogleCredentials
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: Google
+      ProviderType: Google
+      ProviderDetails:
+        client_id: !Ref GoogleClientId
+        client_secret: !Ref GoogleClientSecret
+        authorize_scopes: "openid email profile"
+      AttributeMapping:
+        email: email
+        email_verified: email_verified
+        name: name
+        picture: picture
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "${ProjectName}-frontend"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email, profile]
+      CallbackURLs:
+        - !Sub "${FrontendOrigin}/auth/callback/"
+        - !Sub "${LocalhostOrigin}/auth/callback/"
+      LogoutURLs:
+        - !Sub "${FrontendOrigin}/"
+        - !Sub "${LocalhostOrigin}/"
+      # Ref supplies the provider name and orders client creation after Google.
+      SupportedIdentityProviders: !If
+        - HasGoogleCredentials
+        - [COGNITO, !Ref GoogleIdentityProvider]
+        - [COGNITO]
+      ReadAttributes: [email, email_verified, name, picture]
+      # email_verified is mapped by Cognito, not writable by the public client.
+      WriteAttributes: [email, name, picture]
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref UserPool
+      Domain: !Ref CognitoDomainPrefix
+      ManagedLoginVersion: 2
+
+  ManagedLoginBranding:
+    Type: AWS::Cognito::ManagedLoginBranding
+    DependsOn: UserPoolDomain
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientId: !Ref UserPoolClient
+      UseCognitoProvidedValues: true
+
+Outputs:
+  UserPoolId:
+    Value: !Ref UserPool
+
+  UserPoolClientId:
+    Description: Public app client ID; safe for a frontend build.
+    Value: !Ref UserPoolClient
+
+  CognitoDomainPrefix:
+    Value: !Ref CognitoDomainPrefix
+
+  CognitoDomain:
+    Description: Managed Login origin; distinct from the OIDC authority.
+    Value: !Sub "https://${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
+
+  Authority:
+    Description: OIDC issuer for react-oidc-context and oidc-client-ts.
+    Value: !Sub "https://cognito-idp.${AWS::Region}.${AWS::URLSuffix}/${UserPool}"
+
+  GoogleAuthorizedJavaScriptOrigin:
+    Value: !Sub "https://${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
+
+  GoogleAuthorizedRedirectUri:
+    Value: !Sub "https://${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/oauth2/idpresponse"
+
+  FrontendCallbackUrl:
+    Value: !Sub "${FrontendOrigin}/auth/callback/"
+
+  LocalhostCallbackUrl:
+    Value: !Sub "${LocalhostOrigin}/auth/callback/"
+
+  FrontendLogoutUrl:
+    Value: !Sub "${FrontendOrigin}/"
+
+  LocalhostLogoutUrl:
+    Value: !Sub "${LocalhostOrigin}/"
+
+  GoogleFederationEnabled:
+    Value: !If [HasGoogleCredentials, "true", "false"]

@@ -7,6 +7,8 @@ const output =
 
 const nextConfig: NextConfig = {
   output,
+  // Preserve registered OIDC slash URLs without changing .html export layout.
+  skipTrailingSlashRedirect: true,
   // The export target has no server to optimize images on the fly.
   ...(output === "export" ? { images: { unoptimized: true } } : {}),
 };

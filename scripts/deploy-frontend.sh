@@ -4,6 +4,7 @@
 # The API URL is compiled into the bundle - NEXT_PUBLIC_* is substituted at
 # build time, not read at runtime - so this builds against BACKEND_URL from
 # .env, which scripts/deploy-backend.sh writes. Deploy the backend first.
+set +x
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -24,6 +25,12 @@ if [[ -f "${ROOT}/.env" ]]; then
   set +a
   eval "${preset}"
 fi
+
+# Google credentials are infrastructure-only; never inherit them into the build.
+unset GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
+# Stack outputs in frontend/.env.local win over stale exported auth settings.
+unset NEXT_PUBLIC_COGNITO_AUTHORITY NEXT_PUBLIC_COGNITO_CLIENT_ID NEXT_PUBLIC_COGNITO_DOMAIN
+unset NEXT_PUBLIC_AUTH_REDIRECT_URI NEXT_PUBLIC_AUTH_LOGOUT_URI
 
 # A blank AWS_PROFILE is read as a profile literally named "", and blank keys
 # short-circuit the credential chain. Treat empty as absent.
@@ -98,6 +105,9 @@ outputs() {
 BUCKET="$(outputs BucketName)"
 DISTRIBUTION_ID="$(outputs DistributionId)"
 SITE_URL="$(outputs SiteUrl)"
+
+# Fetch only public auth outputs; this never deploys the auth stack.
+AUTH_EXPECTED_SITE_URL="${SITE_URL}" "${ROOT}/scripts/auth-config.sh" deployed
 
 # --- build ------------------------------------------------------------------
 

@@ -21,7 +21,7 @@ Peach is a full-stack application that demonstrates an end-to-end connection bet
 | `frontend/lib/` | API client, runtime schemas, item status helpers, and utilities. |
 | `frontend/public/` | Static public assets. |
 | `frontend/tests/` | Vitest and React Testing Library tests and setup. |
-| `infra/` | CloudFormation templates for the backend, frontend, and GitHub OIDC deployment role. |
+| `infra/` | CloudFormation templates for the backend, frontend, Cognito authentication, and GitHub OIDC deployment role. |
 | `scripts/` | AWS deployment, teardown, frontend domain/certificate, and GitHub role setup scripts. |
 | `.github/workflows/` | Lint/type checks and backend deployment workflow. |
 | `Makefile` | Commands for local services, migrations, checks, and AWS deployment. |
@@ -97,7 +97,7 @@ Create input requires `name` (1–120 characters). `description` is optional/nul
 
 Errors use FastAPI's `detail` field; validation errors use HTTP 422. The frontend converts unsuccessful responses into `ApiError`, handles empty 204 responses, and validates successful JSON against its Zod schemas. These schemas mirror the backend contract manually; no generated shared client is present.
 
-Browser calls use `NEXT_PUBLIC_API_URL`; server-side calls use `INTERNAL_API_URL`. `NEXT_PUBLIC_API_URL` is embedded during frontend builds. For AWS static deployment it is set from `BACKEND_URL`. Backend `CORS_ORIGINS` permits configured browser origins; the deployment script accepts `API_CORS_ORIGINS` for that setting. The current API does not implement application user authentication or authorization.
+Browser calls use `NEXT_PUBLIC_API_URL`; server-side calls use `INTERNAL_API_URL`. `NEXT_PUBLIC_API_URL` is embedded during frontend builds. For AWS static deployment it is set from `BACKEND_URL`. Backend `CORS_ORIGINS` permits configured browser origins; the deployment script accepts `API_CORS_ORIGINS` for that setting. The API does not implement application user authentication or authorization. Frontend authentication uses Cognito through react-oidc-context and oidc-client-ts, with a static callback and PKCE; it does not protect API requests.
 
 ## AWS deployment structure
 
@@ -126,3 +126,15 @@ Browser calls use `NEXT_PUBLIC_API_URL`; server-side calls use `INTERNAL_API_URL
 ## Existing verification commands
 
 `make lint` runs backend Ruff lint and frontend ESLint inside Compose. `make test` runs pytest and Vitest; backend database tests use a separate test database. Lint CI additionally runs Ruff's formatting check, Prettier's formatting check, and `pnpm exec tsc --noEmit`. The frontend tests use Vitest, jsdom, and React Testing Library. Formatting commands (`make fmt`) are separate from the read-only checks.
+
+## Authentication deployment and public configuration
+
+`make deploy-auth` runs `scripts/deploy-auth.sh` to update only the existing auth
+stack with Google credentials from gitignored root `.env`. It preserves other
+stack parameters and streams the secret through stdin, never a parameter file.
+`make auth-config` reads CloudFormation outputs into public `frontend/.env.local`
+settings for localhost; frontend deployment reads deployed settings before build.
+The browser stores its OIDC session and PKCE state in session storage. `/login/`
+starts Managed Login; `/auth/callback/` is a static page processed by the global
+auth provider. The header displays the email and clears the browser session before
+Cognito logout. Existing API authorization is deferred.

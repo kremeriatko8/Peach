@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain deploy-frontend destroy-frontend github-role
+.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain deploy-frontend destroy-frontend github-role validate-auth deploy-auth auth-config
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -78,3 +78,12 @@ destroy-frontend: ## Delete the frontend stack (bucket + distribution)
 
 github-role: ## Create the IAM role GitHub Actions assumes to deploy (OIDC, no keys)
 	./scripts/github-role.sh
+
+validate-auth: ## Validate Cognito infrastructure locally with cfn-lint (no AWS calls)
+	cfn-lint --regions us-east-1 --template infra/auth.yaml
+
+deploy-auth: ## Update only the existing auth stack with Google credentials from .env
+	./scripts/deploy-auth.sh
+
+auth-config: ## Read auth outputs into frontend/.env.local for localhost (no deployment)
+	./scripts/auth-config.sh local

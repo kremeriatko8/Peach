@@ -538,11 +538,90 @@ build native and those two steps unnecessary.
 
 The frontend is not wired to CI — `make deploy-frontend` stays a local command for now.
 
+## Cognito authentication
+
+`infra/auth.yaml` defines the email-based user pool, public authorization-code
+client, Cognito prefix domain, Managed Login v2 branding, and conditional Google
+identity provider. The Essentials tier is required for Managed Login v2; see
+[Cognito pricing](https://aws.amazon.com/cognito/pricing/) for usage charges.
+API JWT verification is not implemented: existing API endpoints remain public.
+
+To enable Google on the existing stack, store the Google OAuth web client values
+in root gitignored `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and set
+`COGNITO_DOMAIN_PREFIX` to the existing prefix. Then, when ready to deploy:
+
+```bash
+make deploy-auth
+```
+
+This explicitly deploys only the existing `${PROJECT_NAME:-peach}-auth` stack in
+`us-east-1` (override with `AUTH_STACK_NAME`). It requires both Google credentials,
+checks the prefix against the existing stack, and leaves frontend/local origins
+and all other parameters unchanged. It does not deploy the frontend or backend.
+Tracing is disabled, and credentials stream through stdin to CloudFormation;
+there is no secret parameter file, literal secret argument, or secret output.
+The real `.env` is not rewritten. Do not add debugging that prints credentials.
+
+The Google web client should register:
+
+- Origin: `https://peach-auth-diby4tampbgny.auth.us-east-1.amazoncognito.com`
+- Redirect: `https://peach-auth-diby4tampbgny.auth.us-east-1.amazoncognito.com/oauth2/idpresponse`
+
+The Google callback goes to Cognito; Cognito then returns to the frontend. Default
+frontend callbacks are `https://diby4tampbgny.cloudfront.net/auth/callback/` and
+`http://localhost:3000/auth/callback/`, with logout destinations at each origin
+followed by `/`. Keep registered URLs and trailing slashes exact.
+
+For local development, fetch public stack outputs without deploying:
+
+```bash
+make auth-config
+make up
+```
+
+`auth-config` writes only five public auth values to gitignored
+`frontend/.env.local`, preserving other entries. The bind-mounted Next.js dev
+server reads this file; direct `cd frontend && pnpm dev` does too. Restart an
+existing dev server after changing it. `AUTH_STACK_NAME` and AWS credentials are
+resolved from root `.env`, with exported shell variables taking precedence.
+Local callback URLs come from stack outputs; a different `FRONTEND_PORT` also
+requires updating the stack's localhost origin separately.
+
+`make deploy-frontend` reads the deployed auth outputs into the same public
+configuration file before building. It does not deploy auth. Public values are
+compiled at build time, so changes need a rebuild. Running local `auth-config`
+afterwards restores localhost settings for development. Builds outside these
+scripts must also supply the five values documented in `frontend/lib/auth.ts`;
+Google credentials are never frontend configuration. A build without auth
+configuration still serves the existing demo but cannot start sign-in.
+
+`/login/` starts `signinRedirect()` once. `react-oidc-context` processes the static
+`/auth/callback/` route, using `oidc-client-ts` authorization-code flow and S256
+PKCE. Callback parameters are removed before returning to the dashboard.
+Sessions and PKCE state use session storage. Automatic iframe renewal is disabled;
+when the session expires, sign in again. Sign out clears the local session and
+navigates to Cognito `/logout` with the registered logout URL. It does not sign
+users out of Google itself. The header displays email and Sign out when signed in.
+
+The export keeps `.html` files and the existing CloudFront rewrite. Next.js slash
+normalization is disabled so registered callback URLs are preserved locally too.
+
+Local infrastructure validation (install and activate a `cfn-lint` environment):
+
+```bash
+make validate-auth
+```
+
+This performs no AWS calls. AWS permissions must cover identity-provider
+create/read/update/delete and app-client update on the existing pool. Existing
+stack settings, public outputs, and runtime Google credentials are not verified
+by local linting. The frontend session does not protect the backend API.
+
 ## 14. Where to take it next
 
 When the real domain arrives, replace the `Item` model, schemas, service, routes and the `/items`
 screen, and add an Alembic revision for the new tables. Everything else — config, database wiring,
 Compose, Dockerfiles, tooling, tests scaffolding — stays as is.
 
-The deliberate gaps, left for later: authentication and authorization, multi-tenancy, background
+The deliberate gaps, left for later: API authentication and authorization, multi-tenancy, background
 workers, and a CI path for the frontend deploy.
