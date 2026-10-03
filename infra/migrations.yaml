@@ -37,7 +37,6 @@ Resources:
       Architectures: [!Ref Architecture]
       MemorySize: 512
       Timeout: 900
-      ReservedConcurrentExecutions: 1
       Role: !Ref ExecutionRoleArn
       LoggingConfig:
         LogGroup: !Ref LogGroup

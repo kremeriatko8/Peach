@@ -674,7 +674,9 @@ New installations need a separately reviewed database/bootstrap path first.
 Runner deployment/invocation/result failure stops before any public backend
 update. The runner has no Function URL or public invocation grant and accepts
 only the explicit migration event. It adds one Lambda and one seven-day log group,
-reuses the existing execution role/networking, and limits concurrency to one.
+reuses the existing execution role/networking, and uses normal unreserved Lambda
+concurrency. Migration safety relies on controlled deployment invocation and
+transactional database locking that serializes migration attempts.
 It can incur Lambda/log charges when invoked and wakes Aurora during migrations.
 The public Function URL stays `AuthType: NONE`; FastAPI performs authentication.
 
