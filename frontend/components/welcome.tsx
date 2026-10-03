@@ -22,7 +22,11 @@ export function Welcome() {
     }
   }
   return (
-    <div className="relative grid min-h-[65vh] items-center gap-16 py-8 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
+    <div className="relative isolate grid min-h-[65vh] items-center gap-16 py-8 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
+      <div
+        aria-hidden
+        className="welcome-atmosphere pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+      />
       <div className="relative z-10">
         <span aria-hidden className="mb-8 block text-7xl">
           🍑

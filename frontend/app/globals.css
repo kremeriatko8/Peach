@@ -212,3 +212,29 @@
   /* The default page block: hairline border, no fill, no lift. */
   @apply rounded-xl border border-border bg-card;
 }
+
+.welcome-atmosphere::before,
+.welcome-atmosphere::after {
+  content: "";
+  position: absolute;
+  width: min(75%, 32rem);
+  aspect-ratio: 1.2;
+  opacity: 0.3;
+  filter: blur(28px);
+}
+
+.welcome-atmosphere::before {
+  top: 2%;
+  left: -10%;
+  border-radius: 63% 37% 54% 46% / 42% 58% 42% 58%;
+  background: #ffe2cc;
+  transform: rotate(-18deg);
+}
+
+.welcome-atmosphere::after {
+  right: -8%;
+  bottom: 3%;
+  border-radius: 38% 62% 35% 65% / 56% 39% 61% 44%;
+  background: #ffddce;
+  transform: rotate(22deg);
+}
