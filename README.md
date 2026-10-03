@@ -673,7 +673,8 @@ New installations need a separately reviewed database/bootstrap path first.
 
 Runner deployment/invocation/result failure stops before any public backend
 update. The runner has no Function URL or public invocation grant and accepts
-only the explicit migration event. It adds one Lambda and one seven-day log group,
+only explicit migration and fixed legacy-cleanup events. It adds one Lambda and
+one seven-day log group,
 reuses the existing execution role/networking, and uses normal unreserved Lambda
 concurrency. Migration safety relies on controlled deployment invocation and
 transactional database locking that serializes migration attempts.
@@ -752,11 +753,11 @@ other user's item. Verify account switching clears cached tasks.
 
 The legacy demo rows remain NULL-owned and hidden from authenticated users.
 After successful rollout and verification, an authorized operator may separately
-clean them up using an existing private database administration connection.
-No cleanup endpoint or migration-runner operation is provided. In an explicit
-transaction, lock item writes, inspect `SELECT count(*) FROM items WHERE owner_id
-IS NULL`, and review those rows. Then run `DELETE FROM items WHERE owner_id IS
-NULL RETURNING id`, confirm the returned count matches the reviewed count, and
-verify no NULL-owner rows remain before committing. Roll back on any discrepancy.
-Do not assume the count remains 14. Owned rows must remain untouched. This cleanup
-is never part of migration or deployment and has not been performed.
+invoke the private runner with exactly `{"action":"cleanup_legacy_items"}`.
+It requires database revision `0003` and existing owned tasks, locks item writes,
+deletes only NULL-owner rows transactionally, and verifies the deletion counts,
+zero remaining NULL-owner rows, unchanged revision, and every owned row's full
+contents. Any discrepancy rolls back. No public endpoint, caller-supplied SQL or
+filters are supported. This cleanup never runs during migration or deployment
+and has not been performed. Keep the recovery snapshot until cleanup and health
+verification both succeed.
