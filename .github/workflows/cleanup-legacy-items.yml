@@ -1,0 +1,150 @@
+name: Clean up legacy tasks
+
+on:
+  workflow_dispatch:
+
+# Serialize with the normal backend release; never interrupt either operation.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_PAGER: ""
+      SOURCE_COMMIT: d30a6651dcadd7c2bd68e6523558d4b408b88fad
+      SNAPSHOT_ID: peach-pre-ownership-20261003-141606-7943
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: d30a6651dcadd7c2bd68e6523558d4b408b88fad
+          persist-credentials: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: gha-cleanup-${{ github.run_id }}
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Update only the private runner and clean up legacy tasks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import runpy
+          import subprocess
+          import tempfile
+          import urllib.request
+          from pathlib import Path
+
+          def aws(*args):
+              output = subprocess.check_output(
+                  ["aws", *args, "--output", "json", "--no-cli-pager"]
+              )
+              return json.loads(output) if output.strip() else {}
+
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+
+          def public_image():
+              return aws("lambda", "get-function", "--function-name", "peach-backend")["Code"]["ResolvedImageUri"]
+
+          def runner_config():
+              config = aws("lambda", "get-function-configuration", "--function-name", "peach-migrations")
+              require(config["State"] == "Active" and config["LastUpdateStatus"] == "Successful", "Runner is not stable")
+              require(config["Architectures"] == ["arm64"], "Runner must use arm64")
+              require(config["ImageConfigResponse"]["ImageConfig"]["Command"] == ["app.migration_handler.handler"], "Unexpected runner handler")
+              require(config["VpcConfig"].get("VpcId") and config["VpcConfig"]["SubnetIds"] and config["VpcConfig"]["SecurityGroupIds"], "Runner must remain inside the VPC")
+              # Compare private configuration in memory; never log database credentials.
+              return {key: config.get(key) for key in (
+                  "Role", "VpcConfig", "Environment", "ImageConfigResponse", "Architectures", "Timeout", "MemorySize"
+              )}
+
+          require(subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip() == os.environ["SOURCE_COMMIT"], "Unexpected source commit")
+          verify_snapshot = runpy.run_path("scripts/backend-preflight.py")["snapshot"]
+          verify_snapshot("peach-db", os.environ["SNAPSHOT_ID"])
+          original_public_image = public_image()
+          original_runner_config = runner_config()
+          urls = aws("lambda", "list-function-url-configs", "--function-name", "peach-migrations")
+          require(not urls.get("FunctionUrlConfigs"), "Runner must have no Function URL")
+          stack = aws("cloudformation", "describe-stacks", "--stack-name", "peach-migrations")["Stacks"][0]
+          require(stack["StackStatus"] in ("CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"), "Runner stack is not stable")
+          parameters = {item["ParameterKey"]: item["ParameterValue"] for item in stack["Parameters"]}
+          require(set(parameters) == {"ProjectName", "ImageUri", "Architecture", "ExecutionRoleArn", "SubnetIds", "SecurityGroupIds", "DatabaseUrl"}, "Unexpected runner parameters")
+          require(parameters["ProjectName"] == "peach" and parameters["Architecture"] == "arm64", "Unexpected runner project/architecture")
+
+          repository = aws("ecr", "describe-repositories", "--repository-names", "peach-backend")["repositories"][0]["repositoryUri"]
+          registry = repository.split("/")[0]
+          password = subprocess.check_output(["aws", "ecr", "get-login-password"], text=True)
+          subprocess.run(["docker", "login", "--username", "AWS", "--password-stdin", registry], input=password, text=True, check=True)
+          del password
+          tag = f"cleanup-{os.environ['SOURCE_COMMIT']}-{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}"
+          subprocess.run([
+              "docker", "buildx", "build", "--platform", "linux/arm64", "--target", "lambda",
+              "--provenance=false", "--sbom=false", "--tag", f"{repository}:{tag}", "--push", "backend"
+          ], check=True)
+          digest = aws("ecr", "describe-images", "--repository-name", "peach-backend", "--image-ids", f"imageTag={tag}")["imageDetails"][0]["imageDigest"]
+          image = f"{repository}@{digest}"
+          overrides = [{"ParameterKey": key, **({"ParameterValue": image} if key == "ImageUri" else {"UsePreviousValue": True})} for key in parameters]
+          change_set = f"cleanup-{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}"
+          aws("cloudformation", "create-change-set", "--stack-name", "peach-migrations",
+              "--change-set-name", change_set, "--change-set-type", "UPDATE",
+              "--use-previous-template", "--parameters", json.dumps(overrides))
+          subprocess.run(["aws", "cloudformation", "wait", "change-set-create-complete", "--stack-name", "peach-migrations", "--change-set-name", change_set], check=True)
+          change = aws("cloudformation", "describe-change-set", "--stack-name", "peach-migrations", "--change-set-name", change_set, "--no-paginate")
+          require(change["Status"] == "CREATE_COMPLETE" and change["ExecutionStatus"] == "AVAILABLE" and not change.get("NextToken"), "Change set is not ready/complete")
+          changes = change.get("Changes", [])
+          require(len(changes) == 1, "Only the runner code may change")
+          resource = changes[0]["ResourceChange"]
+          require(resource["LogicalResourceId"] == "Function" and resource["PhysicalResourceId"] == "peach-migrations"
+                  and resource["ResourceType"] == "AWS::Lambda::Function" and resource["Action"] == "Modify"
+                  and resource["Replacement"] == "False" and resource["Scope"] == ["Properties"], "Unsafe runner change set")
+          details = resource.get("Details", [])
+          require(details and all(detail["Target"]["Attribute"] == "Properties"
+                  and detail["Target"]["Name"] == "Code" and detail["Target"]["RequiresRecreation"] == "Never"
+                  for detail in details), "Only the runner ImageUri may change")
+          require(public_image() == original_public_image and runner_config() == original_runner_config, "Production configuration changed during preparation")
+          verify_snapshot("peach-db", os.environ["SNAPSHOT_ID"])
+          aws("cloudformation", "execute-change-set", "--stack-name", "peach-migrations", "--change-set-name", change_set)
+          subprocess.run(["aws", "cloudformation", "wait", "stack-update-complete", "--stack-name", "peach-migrations"], check=True)
+          subprocess.run(["aws", "lambda", "wait", "function-updated-v2", "--function-name", "peach-migrations"], check=True)
+          require(runner_config() == original_runner_config, "Runner configuration changed beyond its image")
+          require(aws("lambda", "get-function", "--function-name", "peach-migrations")["Code"]["ResolvedImageUri"] == image, "Runner image mismatch")
+          require(public_image() == original_public_image, "Public backend image changed")
+          verify_snapshot("peach-db", os.environ["SNAPSHOT_ID"])
+
+          with tempfile.TemporaryDirectory() as directory:
+              response_path = Path(directory) / "response.json"
+              invocation = aws("lambda", "invoke", "--function-name", "peach-migrations",
+                  "--invocation-type", "RequestResponse", "--cli-binary-format", "raw-in-base64-out",
+                  "--cli-read-timeout", "900", "--payload", '{"action":"cleanup_legacy_items"}', str(response_path))
+              require(invocation["StatusCode"] == 200 and not invocation.get("FunctionError"), "Cleanup failed; keep the snapshot and inspect runner logs")
+              result = json.loads(response_path.read_text())
+          require(result.get("status") == "ok", "Cleanup did not report success")
+          require(all(type(result.get(key)) is int for key in ("legacy_before", "deleted", "legacy_after", "owned_remaining")), "Invalid cleanup counts")
+          require(result["legacy_before"] >= 0 and result["deleted"] == result["legacy_before"]
+                  and result["legacy_after"] == 0 and result["owned_remaining"] > 0
+                  and result.get("owned_rows_preserved") is True and result.get("database_revision") == "0003", "Cleanup verification failed; keep the snapshot")
+          print(json.dumps(result))
+          base = aws("lambda", "get-function-url-config", "--function-name", "peach-backend")["FunctionUrl"].rstrip("/")
+          for path, expected in (("/health", {"status": "ok"}), ("/api/v1/health/ready", {"status": "ok", "database": "ok"})):
+              with urllib.request.urlopen(base + path, timeout=30) as response:
+                  require(response.status == 200 and json.load(response) == expected, "Production health/readiness failed; keep the snapshot")
+          require(public_image() == original_public_image, "Public backend image changed")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("### Legacy cleanup verified\n\n```json\n" + json.dumps(result, indent=2) + "\n```\n\nHealth/readiness passed. Public backend image unchanged. Snapshot retained.\n")
+          PY
