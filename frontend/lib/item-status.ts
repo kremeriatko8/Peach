@@ -7,9 +7,9 @@ export const statusMeta: Record<
 > = {
   todo: {
     label: "To do",
-    dot: "bg-muted-foreground/60",
-    pill: "bg-accent text-secondary-foreground",
-    column: "bg-tint-gray",
+    dot: "bg-tint-peach-foreground",
+    pill: "bg-tint-peach text-tint-peach-foreground",
+    column: "bg-tint-peach/60",
   },
   in_progress: {
     label: "In progress",

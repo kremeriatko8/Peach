@@ -81,8 +81,8 @@
   --card-foreground: #191918;
   --popover: #ffffff;
   --popover-foreground: #191918;
-  /* Notion's action blue. */
-  --primary: #0075de;
+  /* Peach's coral action accent. */
+  --primary: #b94736;
   --primary-foreground: #ffffff;
   --secondary: #f6f5f4;
   --secondary-foreground: #37352f;
@@ -93,13 +93,13 @@
   --destructive: #d44c47;
   --border: #e9e9e7;
   --input: #dfdfdc;
-  --ring: #0075de;
+  --ring: #b94736;
   --chart-1: #0075de;
   --chart-2: #d9730d;
   --chart-3: #0f7b6c;
   --chart-4: #6940a5;
   --chart-5: #ad1a72;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
   --sidebar: #f9f9f8;
   --sidebar-foreground: #191918;
   --sidebar-primary: #0075de;

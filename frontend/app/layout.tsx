@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 
@@ -20,7 +21,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Peach",
-  description: "FastAPI + Next.js + Postgres starter",
+  description: "A simple, visual workspace for your tasks.",
 };
 
 export default function RootLayout({
@@ -43,7 +44,12 @@ export default function RootLayout({
           </main>
           <footer className="mt-auto">
             <div className="mx-auto w-full max-w-5xl px-6 py-8 text-xs text-muted-foreground sm:px-8">
-              Peach - FastAPI, Next.js and Postgres, wired together.
+              <div className="flex items-center justify-between">
+                <span>🍑 Peach · Make room for progress.</span>
+                <Link href="/privacy/" className="hover:text-foreground">
+                  Privacy Policy
+                </Link>
+              </div>
             </div>
           </footer>
           <Toaster />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlignLeft, Plus } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ import {
   type ItemStatus,
 } from "@/lib/api";
 import { statusMeta } from "@/lib/item-status";
+import { useItems } from "@/lib/items";
 import { cn } from "@/lib/utils";
 
 const DRAG_TYPE = "application/x-peach-item";
@@ -51,10 +52,7 @@ export function ItemBoard() {
   const drag = useRef<DragInfo | null>(null);
   const columns = useRef<Partial<Record<ItemStatus, HTMLElement | null>>>({});
 
-  const { data, isPending, isError, error, refetch } = useQuery({
-    queryKey: ["items"],
-    queryFn: () => api.listItems({ limit: 100 }),
-  });
+  const { data, isPending, isError, error, refetch } = useItems();
 
   const move = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ItemStatus }) =>
