@@ -15,6 +15,8 @@ export function Dashboard() {
   const auth = useAuth();
   const name = auth.user?.profile.name?.trim();
   const { data, isPending, isError, refetch } = useItems();
+  const upNext =
+    data?.items.filter((item) => item.status !== "done").slice(0, 5) ?? [];
   return (
     <div className="grid gap-8">
       <div className="flex flex-wrap items-end justify-between gap-5">
@@ -59,17 +61,17 @@ export function Dashboard() {
           <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
             <section className="rounded-2xl border bg-card p-6 shadow-xs">
               <div className="mb-6 flex items-center justify-between gap-3">
-                <h2 className="font-semibold">Your tasks</h2>
+                <h2 className="font-semibold">Up next</h2>
                 <Link
                   href="/items"
                   className="flex items-center gap-1 text-xs font-medium text-primary"
                 >
-                  View all tasks <ArrowRight className="size-3" />
+                  View board <ArrowRight className="size-3" />
                 </Link>
               </div>
-              {data.items.length ? (
+              {upNext.length ? (
                 <ul className="divide-y divide-border">
-                  {data.items.slice(0, 5).map((item) => (
+                  {upNext.map((item) => (
                     <li
                       key={item.id}
                       className="flex items-center justify-between gap-3 py-4"
@@ -100,9 +102,13 @@ export function Dashboard() {
                   <p className="mb-2 text-2xl" aria-hidden>
                     🌱
                   </p>
-                  <p className="text-sm font-medium">A fresh start</p>
+                  <p className="text-sm font-medium">
+                    {data.items.length ? "All caught up" : "A fresh start"}
+                  </p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Add your first task on the board.
+                    {data.items.length
+                      ? "No unfinished tasks. View the board to add your next task."
+                      : "Add your first task on the board."}
                   </p>
                 </div>
               )}
