@@ -118,6 +118,14 @@ Parameters:
     Default: "*"
     Description: Comma-separated browser origins; set this to the deployed frontend URL.
 
+  CognitoAuthority:
+    Type: String
+  CognitoClientId:
+    Type: String
+  CognitoJwksJson:
+    Type: String
+    Description: Public signing keys downloaded during deployment; refresh on key rotation.
+
   LogRetentionDays:
     Type: Number
     Default: 7
@@ -276,6 +284,9 @@ Resources:
         SecurityGroupIds: [!Ref FunctionSecurityGroup]
       Environment:
         Variables:
+          COGNITO_AUTHORITY: !Ref CognitoAuthority
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          COGNITO_JWKS_JSON: !Ref CognitoJwksJson
           APP_ENV: !Ref AppEnv
           LOG_LEVEL: !Ref LogLevel
           CORS_ORIGINS: !Ref CorsOrigins

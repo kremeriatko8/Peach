@@ -23,18 +23,22 @@ async function request<T>(
   path: string,
   schema: z.ZodType<T>,
   init?: RequestInit,
+  auth?: ItemAuth,
 ): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl()}${path}`, {
       ...init,
       cache: "no-store",
+      signal: auth?.signal,
       headers: {
         "Content-Type": "application/json",
+        ...(auth ? { Authorization: `Bearer ${auth.accessToken}` } : {}),
         ...(init?.headers ?? {}),
       },
     });
-  } catch {
+  } catch (error) {
+    if (auth?.signal?.aborted) throw error;
     throw new ApiError(0, "Could not reach the API");
   }
 
@@ -93,29 +97,56 @@ export type ItemInput = z.infer<typeof itemInputSchema>;
 
 /* --- endpoints --- */
 
+export type ItemAuth = { accessToken: string; signal?: AbortSignal };
+function requireToken(auth: ItemAuth): ItemAuth {
+  if (!auth?.accessToken)
+    throw new ApiError(401, "Sign in to access your tasks");
+  return auth;
+}
+
 export const api = {
   readiness: () => request("/api/v1/health/ready", healthSchema),
 
-  listItems: (params: { limit?: number; offset?: number } = {}) => {
+  listItems: (params: { limit?: number; offset?: number }, auth: ItemAuth) => {
     const query = new URLSearchParams();
     if (params.limit !== undefined) query.set("limit", String(params.limit));
     if (params.offset !== undefined) query.set("offset", String(params.offset));
     const suffix = query.size > 0 ? `?${query}` : "";
-    return request(`/api/v1/items${suffix}`, itemListSchema);
+    return request(
+      `/api/v1/items${suffix}`,
+      itemListSchema,
+      undefined,
+      requireToken(auth),
+    );
   },
 
-  createItem: (payload: ItemInput) =>
-    request("/api/v1/items", itemSchema, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+  createItem: (payload: ItemInput, auth: ItemAuth) =>
+    request(
+      "/api/v1/items",
+      itemSchema,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      requireToken(auth),
+    ),
 
-  updateItem: (id: string, payload: Partial<ItemInput>) =>
-    request(`/api/v1/items/${id}`, itemSchema, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    }),
+  updateItem: (id: string, payload: Partial<ItemInput>, auth: ItemAuth) =>
+    request(
+      `/api/v1/items/${id}`,
+      itemSchema,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      requireToken(auth),
+    ),
 
-  deleteItem: (id: string) =>
-    request(`/api/v1/items/${id}`, z.undefined(), { method: "DELETE" }),
+  deleteItem: (id: string, auth: ItemAuth) =>
+    request(
+      `/api/v1/items/${id}`,
+      z.undefined(),
+      { method: "DELETE" },
+      requireToken(auth),
+    ),
 };

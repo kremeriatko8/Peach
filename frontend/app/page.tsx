@@ -2,6 +2,7 @@
 
 import { useAuth } from "react-oidc-context";
 import { useAuthReady } from "@/components/auth-provider";
+import { ItemAccessGate } from "@/components/item-session";
 import { Dashboard } from "@/components/dashboard";
 import { Welcome } from "@/components/welcome";
 
@@ -22,7 +23,13 @@ function Loading() {
 function AuthenticatedHome() {
   const auth = useAuth();
   if (auth.isLoading || auth.activeNavigator) return <Loading />;
-  return auth.isAuthenticated ? <Dashboard /> : <Welcome />;
+  return auth.isAuthenticated ? (
+    <ItemAccessGate>
+      <Dashboard />
+    </ItemAccessGate>
+  ) : (
+    <Welcome />
+  );
 }
 
 export default function HomePage() {

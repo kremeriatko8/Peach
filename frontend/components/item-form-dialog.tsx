@@ -20,7 +20,6 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  api,
   itemInputSchema,
   itemStatuses,
   type Item,
@@ -28,6 +27,7 @@ import {
   type ItemStatus,
 } from "@/lib/api";
 import { statusMeta } from "@/lib/item-status";
+import { useItemApi } from "@/components/item-session";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -49,6 +49,8 @@ export function ItemFormDialog({
   onDelete,
 }: Props) {
   const queryClient = useQueryClient();
+  const api = useItemApi();
+  const queryKey = api.queryKey;
   const isEditing = Boolean(item);
 
   const form = useForm<ItemInput>({
@@ -69,7 +71,8 @@ export function ItemFormDialog({
     mutationFn: (values: ItemInput) =>
       item ? api.updateItem(item.id, values) : api.createItem(values),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["items"] });
+      if (api.session?.signal.aborted) return;
+      await queryClient.invalidateQueries({ queryKey: queryKey });
       toast.success(isEditing ? "Task updated" : "Task created");
       onOpenChange(false);
     },

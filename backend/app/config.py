@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test", "production"] = "development"
     log_level: str = "info"
 
+    cognito_authority: str = ""
+    cognito_client_id: str = ""
+    cognito_jwks_json: str = ""
+
     database_url: str = "postgresql+asyncpg://peach:peach@db:5432/peach"
     # Off on Lambda: a warm but idle execution environment would otherwise hold
     # pooled connections open, and Aurora Serverless only pauses at zero.

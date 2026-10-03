@@ -1,7 +1,11 @@
+import json
 import os
+import time
 from collections.abc import AsyncIterator
 
+import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -25,6 +29,8 @@ def _test_database_url() -> str:
 os.environ["APP_ENV"] = "test"
 os.environ["DATABASE_URL"] = _test_database_url()
 
+from app.auth import get_verifier  # noqa: E402
+from app.config import get_settings  # noqa: E402
 from app.db import Base, get_session  # noqa: E402
 from app.main import create_app  # noqa: E402
 
@@ -72,7 +78,40 @@ async def session(engine) -> AsyncIterator[AsyncSession]:
 
 
 @pytest.fixture
-async def client(session: AsyncSession) -> AsyncIterator[AsyncClient]:
+def tokens(monkeypatch):
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(private.public_key()))
+    public.update(kid="test-key", alg="RS256", use="sig")
+    monkeypatch.setenv(
+        "COGNITO_AUTHORITY", "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_TEST"
+    )
+    monkeypatch.setenv("COGNITO_CLIENT_ID", "test-client")
+    monkeypatch.setenv("COGNITO_JWKS_JSON", json.dumps({"keys": [public]}))
+    get_settings.cache_clear()
+    get_verifier.cache_clear()
+
+    def sign(sub="user-a", changes=None, remove=(), key=None, headers=None):
+        claims = {
+            "sub": sub,
+            "iss": get_settings().cognito_authority,
+            "client_id": "test-client",
+            "token_use": "access",
+            "exp": int(time.time()) + 3600,
+        }
+        claims.update(changes or {})
+        for claim in remove:
+            claims.pop(claim, None)
+        return jwt.encode(
+            claims, key or private, algorithm="RS256", headers=headers or {"kid": "test-key"}
+        )
+
+    yield sign
+    get_verifier.cache_clear()
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+async def client(session: AsyncSession, tokens) -> AsyncIterator[AsyncClient]:
     app = create_app()
 
     async def _override() -> AsyncIterator[AsyncSession]:
@@ -80,6 +119,8 @@ async def client(session: AsyncSession) -> AsyncIterator[AsyncClient]:
 
     app.dependency_overrides[get_session] = _override
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers={"Authorization": "Bearer " + tokens()}
+    ) as client:
         yield client
     app.dependency_overrides.clear()

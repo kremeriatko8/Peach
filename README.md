@@ -22,7 +22,7 @@ everything runnable with a single `docker compose up`.
 | 4 | One-command startup | `docker compose up --build` serves the UI on `:3000` and the API on `:8000` |
 | 5 | Database in Compose | PostgreSQL service with a named volume; migrations applied on backend start |
 
-Non-goals for this iteration: authentication, authorization, multi-tenancy, background workers,
+Non-goals for this iteration: account linking, background workers,
 production deployment manifests. Leave hooks for them, do not build them.
 
 ---
@@ -69,7 +69,7 @@ Peach/
 │
 ├── .github/workflows/
 │   ├── lint.yml                  # ruff + eslint on every push
-│   └── deploy-backend.yml        # ships when a commit message says "deploy"
+│   └── deploy-backend.yml        # deploys every main push after release preflight
 │
 ├── infra/
 │   ├── backend.yaml              # CloudFormation: Lambda + function URL + Aurora Serverless v2
@@ -77,7 +77,7 @@ Peach/
 │   └── github-oidc.yaml          # CloudFormation: the role Actions assumes
 │
 ├── scripts/
-│   ├── deploy-backend.sh         # build -> ECR -> CloudFormation -> migrate -> BACKEND_URL in .env
+│   ├── deploy-backend.sh         # preflight -> ECR -> private migration -> checked change set -> BACKEND_URL
 │   ├── destroy-backend.sh        # delete the stack, database included
 │   ├── deploy-frontend.sh        # static export (against BACKEND_URL) -> S3 -> CloudFront
 │   ├── domain-frontend.sh        # us-east-1 ACM certificate + DNS for the frontend's domain
@@ -95,7 +95,7 @@ Peach/
 │   │   ├── main.py               # FastAPI app factory, router + middleware wiring
 │   │   ├── config.py             # Settings (pydantic-settings), cached accessor
 │   │   ├── db.py                 # async engine, session factory, get_session dependency
-│   │   ├── lambda_handler.py     # Lambda entry: function URL -> Mangum, {"action":"migrate"} -> alembic
+│   │   ├── lambda_handler.py     # HTTP Lambda entry: function URL -> Mangum
 │   │   ├── models/
 │   │   │   ├── __init__.py
 │   │   │   └── item.py           # placeholder ORM model
@@ -355,7 +355,7 @@ The generated project was checked end to end:
 Everything lives in **us-east-1**, and every resource carries a `PROJECT_NAME` tag.
 
 ```bash
-make deploy-backend      # build -> ECR -> CloudFormation -> Lambda -> migrate -> BACKEND_URL in .env
+make deploy-backend      # build -> ECR -> private migration runner -> verify -> public backend
 make migrate-backend     # re-run migrations alone
 make logs-backend        # tail CloudWatch
 make destroy-backend     # delete everything, database included
@@ -369,19 +369,18 @@ internet -> Lambda function URL (HTTPS) -> Lambda (FastAPI via Mangum, in the VP
 
 `scripts/deploy-backend.sh` drives it, in order:
 
-1. ensures the ECR repository, builds the Dockerfile's `lambda` stage for `linux/arm64` and pushes
-   it (with `--provenance=false`: Lambda rejects the manifest list buildx makes otherwise);
-2. deploys the stack with the new image URI;
-3. invokes the function directly with `{"action": "migrate"}`, which runs `alembic upgrade head`.
-   A function URL request can never produce that event, so only someone allowed to call
-   `lambda:InvokeFunction` can trigger it;
-4. **writes the API URL into `.env` as `BACKEND_URL`** — the function URL, always HTTPS.
-   `make deploy-frontend` builds against it, so the backend always goes first.
+1. validates the existing backend/database/network, trusted credentials, auth/JWKS,
+   complete Lambda environments, and an explicitly approved available snapshot;
+2. builds/pushes the image and prepares a checked public UPDATE change set;
+3. updates the private migration runner, migrates transactionally to `0003`, and
+   verifies actual database revision/schema and unchanged legacy rows;
+4. executes the checked public backend change set only after verification;
+5. writes `BACKEND_URL` for the separate frontend deployment.
 
-**Before the first run** put your credentials in `.env` (`AWS_PROFILE` works instead of static
-keys). Everything else is optional: left blank, the script uses the default VPC and its subnets,
-skipping AZs Lambda cannot use (`use1-az3`). The first deploy takes about ten minutes, almost all
-of it Aurora.
+This release script requires an existing backend, auth stack and ECR repository.
+It preserves existing network/database/CORS parameters when CI supplies no `.env`.
+Missing database credentials stop deployment; it never generates replacements.
+See **Controlled ownership release** below for read-only preparation and backup.
 
 **Aurora scales to zero.** The cluster runs Aurora PostgreSQL 17.4 on one `db.serverless` instance
 with `MinCapacity: 0`: after `DB_SECONDS_UNTIL_AUTO_PAUSE` (300 s) without connections it pauses and
@@ -392,9 +391,9 @@ connection instead of a warm environment keeping one open.
 
 **No NAT gateway.** The function sits in the VPC only to reach Aurora and needs nothing from the
 internet, so the default subnets do. The flip side is that it cannot reach Secrets Manager, so
-the connection string comes in as the `DATABASE_URL` environment variable. The password is
-generated on the first deploy, kept in the `peach/backend/database-url` secret, and read back
-from there on later deploys rather than rotated.
+the connection string comes in as the `DATABASE_URL` environment variable. The existing password is
+kept in the `peach/backend/database-url` secret and read back during releases.
+The current existing-stack deployment path never generates or rotates it.
 
 **No custom domain on the backend.** The API answers on its
 `https://<id>.lambda-url.us-east-1.on.aws` name. Only the frontend gets a custom domain (§12).
@@ -489,18 +488,12 @@ distribution in the console; there is no API for it yet.
 make github-role      # once: create the role Actions assumes
 ```
 
-Then write the word **deploy** in a commit message on `main`:
-
-```bash
-git commit -m "tighten the items query, deploy"
-git push
-```
-
-`.github/workflows/deploy-backend.yml` picks that up and runs `make deploy-backend` on a runner.
-Ordinary commits to `main` do nothing, so the expensive path stays opt-in. The workflow also has a
-`workflow_dispatch` trigger, so it can be run by hand from the Actions tab without any magic word.
-Matching is case-insensitive — GitHub compares strings that way — so `Deploy` and `redeployed`
-count too.
+Every push to `main` runs `make deploy-backend`; commit messages do not gate it.
+Before pushing, complete read-only production preflight and confirm a manual
+snapshot is available. Set its ID in repository variable
+`PEACH_RELEASE_SNAPSHOT_ID`. Deployment fails closed without that verified backup.
+Manual `workflow_dispatch` uses the same safeguards. See the controlled release
+procedure below; do not run CI and manual backend deployment concurrently.
 
 **No access key is involved.** `make github-role` creates a stack holding an IAM role and, if the
 account does not already have one, the GitHub OIDC provider. The workflow asks GitHub for a
@@ -544,7 +537,8 @@ The frontend is not wired to CI — `make deploy-frontend` stays a local command
 client, Cognito prefix domain, Managed Login v2 branding, and conditional Google
 identity provider. The Essentials tier is required for Managed Login v2; see
 [Cognito pricing](https://aws.amazon.com/cognito/pricing/) for usage charges.
-API JWT verification is not implemented: existing API endpoints remain public.
+Item endpoints verify Cognito access tokens and enforce subject-based ownership.
+Health endpoints remain public.
 
 To enable Google on the existing stack, store the Google OAuth web client values
 in root gitignored `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and set
@@ -615,7 +609,7 @@ make validate-auth
 This performs no AWS calls. AWS permissions must cover identity-provider
 create/read/update/delete and app-client update on the existing pool. Existing
 stack settings, public outputs, and runtime Google credentials are not verified
-by local linting. The frontend session does not protect the backend API.
+by local linting. Backend item requests require verified access tokens; see the ownership rollout below.
 
 ## 14. Where to take it next
 
@@ -623,5 +617,144 @@ When the real domain arrives, replace the `Item` model, schemas, service, routes
 screen, and add an Alembic revision for the new tables. Everything else — config, database wiring,
 Compose, Dockerfiles, tooling, tests scaffolding — stays as is.
 
-The deliberate gaps, left for later: API authentication and authorization, multi-tenancy, background
+The deliberate gaps, left for later: account linking, background
 workers, and a CI path for the frontend deploy.
+
+
+## Access-token verification and item ownership rollout
+
+Every `/api/v1/items` operation requires a Cognito **access token** in
+`Authorization: Bearer ...`. The backend checks RS256 signature, expiration,
+exact issuer, `token_use=access`, app `client_id`, and nonempty `sub`. ID tokens
+are rejected. Missing/invalid tokens return 401 with `WWW-Authenticate: Bearer`;
+another user’s item returns the same 404 as a missing item. Health endpoints
+stay public. Ownership is server-assigned and write schemas reject `owner_id`.
+
+JWKS is public verification material. Deployment reads `Authority` and
+`UserPoolClientId` from the auth stack, fetches the authority’s JWKS on the deploy
+machine, and supplies a compact snapshot to Lambda. RSA keys are cached in the
+process; verification makes no network calls and unknown signing keys return
+401. **Cognito key rotation requires a backend redeployment to refresh this
+snapshot.** No NAT, API Gateway, Google secret, or token is required. A broken
+backend verifier configuration fails closed with 503.
+
+For local development, `make backend-auth-config` downloads only public settings
+to gitignored `backend/.env.auth.local`. Recreate the Compose backend to load
+changed environment values (`docker compose up -d --force-recreate backend`).
+Local verification uses exactly the same signature/claim checks; there is no
+development bypass. Tests generate their own RSA keys and use disposable local
+PostgreSQL data. Do not point test database configuration at production.
+
+Revision `0003` adds nullable `owner_id` plus an owner/timestamp index. All legacy
+rows remain unassigned and invisible to normal user APIs. New API items always
+have the current verified subject as owner. The previously observed 14 production
+items are disposable demo data. Migration and deployment preserve them with NULL
+ownership; cleanup is a separate operation after successful rollout and verification.
+Downgrading this migration loses owner information; retain the additive schema.
+
+The frontend passes access tokens explicitly, scopes task caches to
+`["items", sub]`, cancels previous-session requests, and clears previous-user
+caches. Unauthenticated/loading Board visits do not fetch items. A 401 stops
+item queries and offers explicit sign-in; it does not silently retry forever.
+OIDC/PKCE, Managed Login, and the Dashboard/Board visual design are preserved.
+
+### Controlled deployment sequence (not a command to run during local review)
+
+The updated deployment path requires the **existing backend and auth stacks**.
+New installations need a separately reviewed database/bootstrap path first.
+
+1. Build/push the new image and resolve its immutable ECR digest.
+2. Deploy `${PROJECT_NAME}-migrations` from `infra/migrations.yaml`, using the
+   existing public function’s role, VPC configuration, and database URL.
+3. Invoke that private runner with `{"action":"migrate"}` and verify a successful
+   response at the expected Alembic revision.
+4. Only then update `infra/backend.yaml` with the new image and public verifier
+   settings. Database/network identity changes are refused by this path.
+
+Runner deployment/invocation/result failure stops before any public backend
+update. The runner has no Function URL or public invocation grant and accepts
+only the explicit migration event. It adds one Lambda and one seven-day log group,
+reuses the existing execution role/networking, and limits concurrency to one.
+It can incur Lambda/log charges when invoked and wakes Aurora during migrations.
+The public Function URL stays `AuthType: NONE`; FastAPI performs authentication.
+
+Deployment IAM needs access to the migration stack and migration Lambda, plus
+`iam:PassRole` for the existing execution role and auth-stack output reads.
+The repository’s GitHub role template uses project-prefix stack/function scopes;
+verify actual attached policies, including the local deployment user’s policy.
+`MIGRATION_STACK_NAME` and `AUTH_STACK_NAME` override default stack names. Do not
+run simultaneous local and CI deployments. GitHub’s backend workflow deploys on
+push to main; pushing this work is a production action requiring prior review.
+
+After separately authorized backend rollout, deploy the token-aware frontend.
+There can be a short compatibility window where the old frontend receives 401.
+Legacy tasks will disappear from ordinary lists without being deleted. Keep a
+backup and review migration logs before the cutover. Signing out clears browser
+state but offline JWT verification cannot instantly invalidate an already-issued
+access token; expiration still applies.
+
+Local deployment orchestration tests use fake AWS/Docker/HTTP executables:
+`python3 -m unittest discover -s scripts/tests -v`. They never deploy resources.
+
+### Controlled ownership release
+
+Do not push this release to `main` before production preparation: that push
+starts backend deployment. Commit locally or use a review branch first. Run all
+local checks, verify live IAM/VPC configuration, retain the previous image, and
+prepare the frontend static build before the release window. Do not run manual
+backend deployment concurrently with CI.
+
+**Read-only production preparation, later:** run
+`bash scripts/deploy-backend.sh --preflight-only`. This validates existing
+credentials/database/network/auth/JWKS, environments, templates and ECR without
+building, deploying or invoking Lambda. It deliberately does not require a
+snapshot; the actual release always does.
+
+**Explicit backup, later only:** run `bash scripts/snapshot-backend.sh` with the
+backup operator's credentials. It resolves `DbCluster` from the existing backend
+stack, creates a uniquely named manual Aurora cluster snapshot, waits for
+`available`, and verifies the cluster identity. Snapshot storage may incur
+charges. Snapshot permissions are not assumed for CI. Restore is a separate
+new-cluster recovery/cutover operation, not an automatic in-place rollback.
+
+Set the returned non-secret `PEACH_RELEASE_SNAPSHOT_ID` as the GitHub repository
+variable before pushing the release to main, or export it for a manual release.
+Deployment requires an available manual snapshot of this exact cluster less
+than 24 hours old. Remove the variable after the controlled release; subsequent
+releases require a newly approved backup. Local `.env` is never available to CI:
+production database/network/CORS parameters are read from the existing stack,
+credentials from its existing secret, and Cognito/JWKS from the auth stack.
+A missing credential fails closed. No replacement password is generated.
+
+The release validates configuration and complete Lambda environment sizes,
+builds/publishes an immutable image, then creates and checks the public backend
+UPDATE change set **before migration**. Any RDS addition, removal or possible
+replacement is refused. It updates the private runner to the same image, runs
+migration `0003` and verifies the actual revision, column, index and unchanged
+rows/ownership transactionally before executing that exact checked change set.
+A failed migration or verification rolls back its transaction and leaves the
+public image unchanged. An empty change set stops without migration. Inspect
+failed/unused change sets before retrying; do not execute them manually.
+
+Next run `make deploy-frontend` promptly. Until the new frontend is live, old
+bundles receive 401 on item requests; login/static pages remain available.
+Use a controlled release window. Authentication is never relaxed. Do not
+rollback to the unauthenticated backend once private items exist, and do not
+Alembic-downgrade `0003` (that destroys ownership information). Fix forward or
+block item traffic while recovering.
+
+After rollout verify 401 for missing/invalid access tokens; public `/health` and
+`/api/v1/health/ready`; password and Google login; separate users' list/create
+behavior; and cross-user GET/PATCH/DELETE returning 404 without modifying the
+other user's item. Verify account switching clears cached tasks.
+
+The legacy demo rows remain NULL-owned and hidden from authenticated users.
+After successful rollout and verification, an authorized operator may separately
+clean them up using an existing private database administration connection.
+No cleanup endpoint or migration-runner operation is provided. In an explicit
+transaction, lock item writes, inspect `SELECT count(*) FROM items WHERE owner_id
+IS NULL`, and review those rows. Then run `DELETE FROM items WHERE owner_id IS
+NULL RETURNING id`, confirm the returned count matches the reviewed count, and
+verify no NULL-owner rows remain before committing. Roll back on any discrepancy.
+Do not assume the count remains 14. Owned rows must remain untouched. This cleanup
+is never part of migration or deployment and has not been performed.

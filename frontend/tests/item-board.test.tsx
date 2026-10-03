@@ -89,7 +89,11 @@ describe("ItemBoard", () => {
     fireEvent.drop(done, at);
 
     await waitFor(() =>
-      expect(update).toHaveBeenCalledWith(makeItem().id, { status: "done" }),
+      expect(update).toHaveBeenCalledWith(
+        makeItem().id,
+        { status: "done" },
+        expect.objectContaining({ accessToken: "test-access" }),
+      ),
     );
     expect(within(done).getByText("Example")).toBeInTheDocument();
   });
@@ -127,9 +131,13 @@ describe("ItemBoard", () => {
     fireEvent.drop(todo, { dataTransfer, clientX: 70, clientY: 20 });
 
     await waitFor(() =>
-      expect(update).toHaveBeenCalledWith(makeItem().id, {
-        status: "in_progress",
-      }),
+      expect(update).toHaveBeenCalledWith(
+        makeItem().id,
+        {
+          status: "in_progress",
+        },
+        expect.objectContaining({ accessToken: "test-access" }),
+      ),
     );
   });
 
@@ -139,8 +147,10 @@ describe("ItemBoard", () => {
     });
     renderWithQuery(<ItemBoard />);
 
-    await waitFor(() =>
-      expect(screen.getByText("Could not load tasks")).toBeInTheDocument(),
+    await waitFor(
+      () =>
+        expect(screen.getByText("Could not load tasks")).toBeInTheDocument(),
+      { timeout: 3000 },
     );
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });

@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Private Peach migration runner. No Function URL, database resources, or NAT.
+Parameters:
+  ProjectName:
+    Type: String
+    Default: peach
+  ImageUri:
+    Type: String
+  Architecture:
+    Type: String
+    AllowedValues: [arm64, x86_64]
+    Default: arm64
+  ExecutionRoleArn:
+    Type: String
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-migrations"
+      RetentionInDays: 7
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-migrations"
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ImageUri
+      ImageConfig:
+        Command: [app.migration_handler.handler]
+      Architectures: [!Ref Architecture]
+      MemorySize: 512
+      Timeout: 900
+      ReservedConcurrentExecutions: 1
+      Role: !Ref ExecutionRoleArn
+      LoggingConfig:
+        LogGroup: !Ref LogGroup
+      VpcConfig:
+        SubnetIds: !Ref SubnetIds
+        SecurityGroupIds: !Ref SecurityGroupIds
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          DB_POOLING: "false"
+          APP_ENV: production
+Outputs:
+  FunctionName:
+    Value: !Ref Function

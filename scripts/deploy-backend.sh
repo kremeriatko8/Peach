@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Build the backend image, push it to ECR, roll the Lambda function defined in
-# infra/backend.yaml (function URL in front, Aurora Serverless v2 behind), run
-# migrations, and write the API URL into .env for deploy-frontend.sh to build
-# against.
+# Publish the backend image, migrate through the private runner, then update
+# the public Lambda only after successful migration. Preserve Aurora and write
+# BACKEND_URL into .env for the separate frontend deployment.
 #
-# Safe to re-run: the CloudFormation stack is the source of truth, so every run
-# after the first is an in-place update with the new image.
+# Existing-stack release only. --preflight-only performs read-only preparation.
+set +x
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,6 +28,8 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
   eval "${preset}"
 fi
+
+unset GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
 
 # A blank AWS_PROFILE is read as a profile literally named "", and blank keys
 # short-circuit the credential chain - which is exactly what a .env full of
@@ -78,6 +79,14 @@ PY
   log "wrote ${1}=${2} to .env"
 }
 
+RELEASE_MODE=release
+case "${1:-}" in
+  "") ;;
+  --preflight-only) RELEASE_MODE=preparation ;;
+  *) die "usage: deploy-backend.sh [--preflight-only]" ;;
+esac
+[[ "$#" -le 1 ]] || die "usage: deploy-backend.sh [--preflight-only]"
+
 # --- preflight --------------------------------------------------------------
 
 for tool in aws docker python3; do
@@ -90,52 +99,44 @@ ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text 2>/dev/n
 CALLER="$(aws sts get-caller-identity --query Arn --output text)"
 log "account ${ACCOUNT_ID} in ${AWS_REGION} as ${CALLER}"
 
-# --- network ----------------------------------------------------------------
+# Require the existing backend: migrate its database before updating public code.
+# A new installation needs database/bootstrap infrastructure provisioned separately.
+FUNCTION_NAME="$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" \
+  --query "Stacks[0].Outputs[?OutputKey=='FunctionName'].OutputValue | [0]" \
+  --output text --no-cli-pager)" || die "existing backend stack required"
+[[ -n "${FUNCTION_NAME}" && "${FUNCTION_NAME}" != None ]] || die "existing backend function required"
+MIGRATION_STACK_NAME="${MIGRATION_STACK_NAME:-${PROJECT_NAME}-migrations}"
+AUTH_STACK_NAME="${AUTH_STACK_NAME:-${PROJECT_NAME}-auth}"
 
-if [[ -z "${AWS_VPC_ID:-}" ]]; then
-  AWS_VPC_ID="$(aws ec2 describe-vpcs --filters Name=is-default,Values=true \
-    --query 'Vpcs[0].VpcId' --output text)"
-  [[ "${AWS_VPC_ID}" != "None" && -n "${AWS_VPC_ID}" ]] \
-    || die "no default VPC in ${AWS_REGION} - set AWS_VPC_ID and AWS_SUBNET_IDS"
-  warn "AWS_VPC_ID unset, using the default VPC ${AWS_VPC_ID}"
-fi
-
-if [[ -z "${AWS_SUBNET_IDS:-}" ]]; then
-  # Lambda cannot place network interfaces in every AZ (us-east-1's use1-az3
-  # is the known case), so those subnets are left out.
-  AWS_SUBNET_IDS="$(EXCLUDED="${LAMBDA_UNSUPPORTED_AZ_IDS:-use1-az3}" python3 -c '
-import json, os, subprocess, sys
-excluded = set(os.environ["EXCLUDED"].split(","))
-subnets = json.loads(subprocess.check_output([
-    "aws", "ec2", "describe-subnets", "--output", "json",
-    "--filters", "Name=vpc-id,Values=" + sys.argv[1], "Name=default-for-az,Values=true",
-]))["Subnets"]
-print(",".join(s["SubnetId"] for s in subnets if s["AvailabilityZoneId"] not in excluded))
-' "${AWS_VPC_ID}")"
-  [[ -n "${AWS_SUBNET_IDS}" ]] || die "no default subnets in ${AWS_VPC_ID}"
-  warn "AWS_SUBNET_IDS unset, using ${AWS_SUBNET_IDS}"
-fi
-
-if [[ "${AWS_SUBNET_IDS}" != *,* ]]; then
-  die "Aurora needs subnets in at least two availability zones"
-fi
+# All sensitive files are private and removed on exit.
+WORK_DIR="$(mktemp -d)"
+chmod 700 "${WORK_DIR}"
+trap 'rm -rf "${WORK_DIR}"' EXIT
+umask 077
+PARAMS_FILE="${WORK_DIR}/backend.json"
+RUNNER_PARAMS="${WORK_DIR}/runner.json"
+AUTH_FILE="${WORK_DIR}/auth.json"
+RESULT_FILE="${WORK_DIR}/result.json"
+export PROJECT_NAME CFN_ARCHITECTURE
+aws cloudformation describe-stacks --stack-name "${AUTH_STACK_NAME}" \
+  --query 'Stacks[0].Outputs' --output json --no-cli-pager \
+  | python3 "${ROOT}/scripts/cognito-snapshot.py" > "${AUTH_FILE}"
+python3 "${ROOT}/scripts/backend-preflight.py" "${STACK_NAME}" "${FUNCTION_NAME}" \
+  "${AUTH_FILE}" "${PARAMS_FILE}" "${RUNNER_PARAMS}" "${RELEASE_MODE}"
 
 # --- ecr --------------------------------------------------------------------
 
 # The repository lives outside the stack: the function cannot be created until
 # there is an image to run, so the push has to happen first.
 REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-if ! aws ecr describe-repositories --repository-names "${ECR_REPOSITORY}" >/dev/null 2>&1; then
-  log "creating ECR repository ${ECR_REPOSITORY}"
-  aws ecr create-repository \
-    --repository-name "${ECR_REPOSITORY}" \
-    --image-scanning-configuration scanOnPush=true \
-    --image-tag-mutability MUTABLE \
-    --tags "Key=PROJECT_NAME,Value=${PROJECT_NAME}" >/dev/null
-  aws ecr put-lifecycle-policy \
-    --repository-name "${ECR_REPOSITORY}" \
-    --lifecycle-policy-text '{"rules":[{"rulePriority":1,"description":"keep the last 3 images","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":3},"action":{"type":"expire"}}]}' \
-    >/dev/null
+aws ecr describe-repositories --repository-names "${ECR_REPOSITORY}" >/dev/null \
+  || die "existing backend ECR repository required; refusing recreation"
+
+aws cloudformation validate-template --template-body "file://${TEMPLATE}" >/dev/null
+aws cloudformation validate-template --template-body "file://${ROOT}/infra/migrations.yaml" >/dev/null
+if [[ "${RELEASE_MODE}" == preparation ]]; then
+  log "Read-only preflight passed. Next: explicit snapshot, then controlled release."
+  exit 0
 fi
 
 if [[ -z "${IMAGE_TAG:-}" || "${IMAGE_TAG}" == "latest" ]]; then
@@ -143,7 +144,7 @@ if [[ -z "${IMAGE_TAG:-}" || "${IMAGE_TAG}" == "latest" ]]; then
     IMAGE_TAG="$(git -C "${ROOT}" rev-parse --short=12 HEAD)"
     # A dirty tree gets a unique tag, or CloudFormation would see the same
     # ImageUri as last time and leave the function on the old image.
-    git -C "${ROOT}" diff --quiet HEAD -- backend \
+    [[ -z "$(git -C "${ROOT}" status --porcelain -- backend)" ]] \
       || IMAGE_TAG="${IMAGE_TAG}-dirty-$(date -u +%Y%m%d%H%M%S)"
   else
     IMAGE_TAG="$(date -u +%Y%m%d%H%M%S)"
@@ -167,115 +168,69 @@ docker buildx build \
   --push \
   "${ROOT}/backend"
 
-# --- database password ------------------------------------------------------
+# Pin both functions to the same immutable published image.
+IMAGE_DIGEST="$(aws ecr describe-images --repository-name "${ECR_REPOSITORY}" \
+  --image-ids "imageTag=${IMAGE_TAG}" --query 'imageDetails[0].imageDigest' --output text)"
+[[ "${IMAGE_DIGEST}" == sha256:* ]] || die "cannot resolve published image digest"
+IMAGE_URI="${REGISTRY}/${ECR_REPOSITORY}@${IMAGE_DIGEST}"
 
-# CloudFormation composes DATABASE_URL from this password and the Aurora
-# endpoint, so it has to stay the same across deploys. Read it back from the
-# secret the stack already owns; only mint a new one on the very first run.
-DB_PASSWORD=""
-SECRET_ARN="$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" \
-  --query "Stacks[0].Outputs[?OutputKey=='DatabaseUrlSecretArn'].OutputValue" \
-  --output text 2>/dev/null || true)"
+# Pin both validated parameter sets to the immutable published image.
+python3 - "${PARAMS_FILE}" "${RUNNER_PARAMS}" "${IMAGE_URI}" <<'PYIMAGE'
+import json, sys
+for path in sys.argv[1:3]:
+    with open(path) as file:
+        params = json.load(file)
+    params = [item for item in params if item["ParameterKey"] != "ImageUri"]
+    params.append({"ParameterKey": "ImageUri", "ParameterValue": sys.argv[3]})
+    with open(path, "w") as file:
+        json.dump(params, file)
+PYIMAGE
 
-if [[ -n "${SECRET_ARN}" && "${SECRET_ARN}" != "None" ]]; then
-  DB_PASSWORD="$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" \
-    --query SecretString --output text 2>/dev/null \
-    | python3 -c 'import sys,urllib.parse; print(urllib.parse.urlsplit(sys.stdin.read().strip()).password or "")')"
-fi
+# Prepare and inspect the EXACT change set before any database mutation.
+CHANGE_SET_NAME="peach-release-$(date -u +%Y%m%d%H%M%S)-${RANDOM}"
+aws cloudformation create-change-set --stack-name "${STACK_NAME}" \
+  --change-set-name "${CHANGE_SET_NAME}" --change-set-type UPDATE \
+  --template-body "file://${TEMPLATE}" --parameters "file://${PARAMS_FILE}" \
+  --capabilities CAPABILITY_IAM --tags Key=PROJECT_NAME,Value="${PROJECT_NAME}" >/dev/null
+aws cloudformation wait change-set-create-complete --stack-name "${STACK_NAME}" \
+  --change-set-name "${CHANGE_SET_NAME}" \
+  || die "change set creation failed or empty; no migration invoked"
+CHANGE_SET_ID="$(aws cloudformation describe-change-set --stack-name "${STACK_NAME}" \
+  --change-set-name "${CHANGE_SET_NAME}" --output json \
+  | python3 "${ROOT}/scripts/check-backend-changeset.py")"
 
-if [[ -z "${DB_PASSWORD}" ]]; then
-  log "generating the database password"
-  # No /, ", @ or space: RDS rejects those, and it keeps the URL parseable.
-  DB_PASSWORD="$(python3 -c '
-import secrets, string
-alphabet = string.ascii_letters + string.digits + "-_.~"
-print("".join(secrets.choice(alphabet) for _ in range(40)))')"
-fi
-
-# --- deploy -----------------------------------------------------------------
-
-# Parameters go through a 0600 file rather than argv, so the password never
-# shows up in `ps`.
-PARAMS_FILE="$(mktemp)"
-chmod 600 "${PARAMS_FILE}"
-RESULT_FILE="$(mktemp)"
-trap 'rm -f "${PARAMS_FILE}" "${RESULT_FILE}"' EXIT
-
-PROJECT_NAME="${PROJECT_NAME}" \
-VPC_ID="${AWS_VPC_ID}" \
-SUBNETS="${AWS_SUBNET_IDS}" \
-IMAGE_URI="${IMAGE_URI}" \
-CFN_ARCHITECTURE="${CFN_ARCHITECTURE}" \
-MEMORY_SIZE="${LAMBDA_MEMORY_SIZE:-}" \
-TIMEOUT_SECONDS="${LAMBDA_TIMEOUT_SECONDS:-}" \
-DB_NAME="${DB_NAME:-${POSTGRES_DB:-peach}}" \
-DB_USERNAME="${DB_USERNAME:-${POSTGRES_USER:-peach}}" \
-DB_PASSWORD="${DB_PASSWORD}" \
-DB_ENGINE_VERSION="${DB_ENGINE_VERSION:-}" \
-DB_MIN_CAPACITY="${DB_MIN_CAPACITY:-}" \
-DB_MAX_CAPACITY="${DB_MAX_CAPACITY:-}" \
-DB_SECONDS_UNTIL_AUTO_PAUSE="${DB_SECONDS_UNTIL_AUTO_PAUSE:-}" \
-APP_ENV="${APP_ENV_AWS:-production}" \
-LOG_LEVEL="${LOG_LEVEL:-info}" \
-CORS_ORIGINS="${API_CORS_ORIGINS:-}" \
-python3 - "${PARAMS_FILE}" <<'PY'
-import json, os, sys
-
-params = {
-    "ProjectName": os.environ["PROJECT_NAME"],
-    "VpcId": os.environ["VPC_ID"],
-    "SubnetIds": os.environ["SUBNETS"],
-    "ImageUri": os.environ["IMAGE_URI"],
-    "Architecture": os.environ["CFN_ARCHITECTURE"],
-    "MemorySize": os.environ["MEMORY_SIZE"],
-    "TimeoutSeconds": os.environ["TIMEOUT_SECONDS"],
-    "DbName": os.environ["DB_NAME"],
-    "DbUsername": os.environ["DB_USERNAME"],
-    "DbPassword": os.environ["DB_PASSWORD"],
-    "DbEngineVersion": os.environ["DB_ENGINE_VERSION"],
-    "DbMinCapacity": os.environ["DB_MIN_CAPACITY"],
-    "DbMaxCapacity": os.environ["DB_MAX_CAPACITY"],
-    "DbSecondsUntilAutoPause": os.environ["DB_SECONDS_UNTIL_AUTO_PAUSE"],
-    "AppEnv": os.environ["APP_ENV"],
-    "LogLevel": os.environ["LOG_LEVEL"],
-    "CorsOrigins": os.environ["CORS_ORIGINS"],
-}
-# An empty value means "leave this alone": CloudFormation reuses the stack's
-# existing value for any parameter the deploy does not mention, and falls back
-# to the template default on a brand new stack. Without this, a deploy from CI -
-# which has no .env - would quietly reset CORS and capacity settings on a
-# stack that already had them.
-with open(sys.argv[1], "w") as fh:
-    json.dump(
-        [
-            {"ParameterKey": k, "ParameterValue": v}
-            for k, v in params.items()
-            if v != ""
-        ],
-        fh,
-    )
-PY
-
-if ! aws cloudformation describe-stacks --stack-name "${STACK_NAME}" >/dev/null 2>&1; then
-  log "first deploy - creating ${STACK_NAME} (Aurora takes around 10 minutes)"
-else
-  log "updating ${STACK_NAME}"
-fi
-
-if ! aws cloudformation deploy \
-  --stack-name "${STACK_NAME}" \
-  --template-file "${TEMPLATE}" \
-  --parameter-overrides "file://${PARAMS_FILE}" \
-  --capabilities CAPABILITY_IAM \
-  --no-fail-on-empty-changeset \
-  --tags "${TAGS[@]}"; then
-  warn "deploy failed - most recent failure reasons:"
-  aws cloudformation describe-stack-events --stack-name "${STACK_NAME}" \
-    --max-items 40 \
-    --query 'StackEvents[?ResourceStatus==`CREATE_FAILED`||ResourceStatus==`UPDATE_FAILED`].[LogicalResourceId,ResourceStatusReason]' \
-    --output table >&2 || true
-  exit 1
-fi
+aws cloudformation deploy --stack-name "${MIGRATION_STACK_NAME}" \
+  --template-file "${ROOT}/infra/migrations.yaml" \
+  --parameter-overrides "file://${RUNNER_PARAMS}" --no-fail-on-empty-changeset \
+  --tags "${TAGS[@]}"
+MIGRATION_FUNCTION="$(aws cloudformation describe-stacks --stack-name "${MIGRATION_STACK_NAME}" \
+  --query "Stacks[0].Outputs[?OutputKey=='FunctionName'].OutputValue | [0]" --output text)"
+aws lambda wait function-updated-v2 --function-name "${MIGRATION_FUNCTION}"
+FUNCTION_ERROR="$(aws lambda invoke --function-name "${MIGRATION_FUNCTION}" \
+  --cli-binary-format raw-in-base64-out --cli-read-timeout 900 \
+  --payload '{"action":"migrate"}' --query FunctionError --output text "${RESULT_FILE}")"
+[[ -z "${FUNCTION_ERROR}" || "${FUNCTION_ERROR}" == None ]] \
+  || die "migration failed; public backend was not updated; inspect migration logs"
+python3 - "${RESULT_FILE}" <<'VERIFY'
+import json, sys
+with open(sys.argv[1]) as file:
+    result = json.load(file)
+verification = result.get("verification", {})
+if (result.get("status") != "ok" or result.get("migrated_to") != "0003"
+    or any(verification.get(key) is not True for key in (
+        "owner_column", "ownership_index", "rows_preserved", "ownership_preserved"))
+    or type(verification.get("rows_before")) is not int
+    or verification["rows_before"] != verification.get("rows_after")):
+    sys.exit("Actual database verification failed; public backend was not updated")
+VERIFY
+# Recheck the same immutable change set immediately before execution.
+VERIFIED_CHANGE_SET_ID="$(aws cloudformation describe-change-set --stack-name "${STACK_NAME}" \
+  --change-set-name "${CHANGE_SET_ID}" --output json \
+  | python3 "${ROOT}/scripts/check-backend-changeset.py")"
+[[ "${VERIFIED_CHANGE_SET_ID}" == "${CHANGE_SET_ID}" ]] || die "change set identity changed"
+aws cloudformation execute-change-set --stack-name "${STACK_NAME}" --change-set-name "${CHANGE_SET_ID}"
+aws cloudformation wait stack-update-complete --stack-name "${STACK_NAME}" \
+  || die "public stack update failed; inspect rollback before retrying"
 
 outputs() {
   aws cloudformation describe-stacks --stack-name "${STACK_NAME}" \
@@ -283,25 +238,6 @@ outputs() {
 }
 
 FUNCTION_NAME="$(outputs FunctionName)"
-
-# --- migrate ----------------------------------------------------------------
-
-# A direct invoke, not a request through the URL - see app/lambda_handler.py.
-# If Aurora is paused, this is also what wakes it.
-log "applying migrations"
-aws lambda wait function-updated-v2 --function-name "${FUNCTION_NAME}"
-FUNCTION_ERROR="$(aws lambda invoke \
-  --function-name "${FUNCTION_NAME}" \
-  --cli-binary-format raw-in-base64-out \
-  --cli-read-timeout 900 \
-  --payload '{"action":"migrate"}' \
-  --query FunctionError --output text \
-  "${RESULT_FILE}")"
-if [[ -n "${FUNCTION_ERROR}" && "${FUNCTION_ERROR}" != "None" ]]; then
-  cat "${RESULT_FILE}" >&2
-  echo >&2
-  die "migrations failed - see: make logs-backend"
-fi
 
 # --- report -----------------------------------------------------------------
 

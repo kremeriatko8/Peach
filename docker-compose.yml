@@ -20,6 +20,9 @@ services:
     networks: [peach]
 
   backend:
+    env_file:
+      - path: ./backend/.env.auth.local
+        required: false
     build:
       context: ./backend
     restart: unless-stopped

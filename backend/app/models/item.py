@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,6 +13,7 @@ class Item(Base):
 
     __tablename__ = "items"
     __table_args__ = (
+        Index("ix_items_owner_id_created_at", "owner_id", "created_at"),
         CheckConstraint("status IN ('todo', 'in_progress', 'done')", name="ck_items_status"),
     )
 
@@ -21,6 +22,7 @@ class Item(Base):
         primary_key=True,
         server_default=func.gen_random_uuid(),
     )
+    owner_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="todo")

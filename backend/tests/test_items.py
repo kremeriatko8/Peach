@@ -80,3 +80,48 @@ async def test_pagination(client: AsyncClient) -> None:
 async def test_pagination_rejects_bad_limit(client: AsyncClient) -> None:
     assert (await client.get("/api/v1/items", params={"limit": 0})).status_code == 422
     assert (await client.get("/api/v1/items", params={"limit": 101})).status_code == 422
+
+
+async def test_ownership_and_legacy_isolation(client, session, tokens):
+    from app.models import Item
+
+    legacy = Item(name="Legacy", owner_id=None)
+    session.add(legacy)
+    await session.flush()
+    a = (await client.post("/api/v1/items", json={"name": "A task"})).json()
+    stored = await session.get(Item, uuid.UUID(a["id"]))
+    assert stored.owner_id == "user-a"
+    assert "owner_id" not in a
+    client.headers["Authorization"] = "Bearer " + tokens("user-b")
+    b = (await client.post("/api/v1/items", json={"name": "B task"})).json()
+    listing = (await client.get("/api/v1/items")).json()
+    assert listing["total"] == 1
+    assert [item["id"] for item in listing["items"]] == [b["id"]]
+    for item_id in (a["id"], str(legacy.id)):
+        for method in ("GET", "PATCH", "DELETE"):
+            response = await client.request(
+                method,
+                f"/api/v1/items/{item_id}",
+                json={"name": "stolen"} if method == "PATCH" else None,
+            )
+            assert response.status_code == 404
+    await session.refresh(stored)
+    assert stored.name == "A task" and stored.owner_id == "user-a"
+    await session.refresh(legacy)
+    assert legacy.name == "Legacy" and legacy.owner_id is None
+    client.headers["Authorization"] = "Bearer " + tokens()
+    listing = (await client.get("/api/v1/items", params={"limit": 1, "offset": 0})).json()
+    assert listing["total"] == 1 and listing["items"][0]["id"] == a["id"]
+    assert (await client.get("/api/v1/items", params={"limit": 1, "offset": 1})).json()[
+        "items"
+    ] == []
+
+
+async def test_owner_cannot_be_supplied_or_changed(client):
+    assert (
+        await client.post("/api/v1/items", json={"name": "x", "owner_id": "user-b"})
+    ).status_code == 422
+    item = (await client.post("/api/v1/items", json={"name": "x"})).json()
+    assert (
+        await client.patch(f"/api/v1/items/{item['id']}", json={"owner_id": "user-b"})
+    ).status_code == 422

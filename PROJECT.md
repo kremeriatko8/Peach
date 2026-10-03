@@ -33,7 +33,7 @@ The backend uses Python, FastAPI, Uvicorn, Pydantic, SQLAlchemy's asynchronous O
 
 The main request path is **HTTP route → item service → SQLAlchemy model/session → PostgreSQL**. Routes validate requests and select response/status codes. Services implement item queries and mutations. Pydantic schemas define input/output data, while SQLAlchemy models define persistence. The injected database session commits successful requests and rolls back on errors.
 
-Locally, Uvicorn serves the ASGI application on port 8000. The Lambda image uses `app/lambda_handler.py` and Mangum to adapt Lambda function URL requests to the same FastAPI application. A direct Lambda invocation with `{"action":"migrate"}` runs Alembic; ordinary HTTP requests do not use that event shape.
+Locally, Uvicorn serves the ASGI application on port 8000. The Lambda image uses `app/lambda_handler.py` and Mangum to adapt Lambda function URL requests to the same FastAPI application. Only the separate private migration Lambda accepts only explicit migration events. The public HTTP Lambda does not dispatch these operations.
 
 ## Frontend architecture
 
@@ -97,15 +97,15 @@ Create input requires `name` (1–120 characters). `description` is optional/nul
 
 Errors use FastAPI's `detail` field; validation errors use HTTP 422. The frontend converts unsuccessful responses into `ApiError`, handles empty 204 responses, and validates successful JSON against its Zod schemas. These schemas mirror the backend contract manually; no generated shared client is present.
 
-Browser calls use `NEXT_PUBLIC_API_URL`; server-side calls use `INTERNAL_API_URL`. `NEXT_PUBLIC_API_URL` is embedded during frontend builds. For AWS static deployment it is set from `BACKEND_URL`. Backend `CORS_ORIGINS` permits configured browser origins; the deployment script accepts `API_CORS_ORIGINS` for that setting. The API does not implement application user authentication or authorization. Frontend authentication uses Cognito through react-oidc-context and oidc-client-ts, with a static callback and PKCE; it does not protect API requests.
+Browser calls use `NEXT_PUBLIC_API_URL`; server-side calls use `INTERNAL_API_URL`. `NEXT_PUBLIC_API_URL` is embedded during frontend builds. For AWS static deployment it is set from `BACKEND_URL`. Backend `CORS_ORIGINS` permits configured browser origins; the deployment script accepts `API_CORS_ORIGINS` for that setting. Item API routes require Cognito access tokens verified offline against deployment-supplied public JWKS. Each task is scoped to the verified Cognito sub; health remains public. Frontend OIDC/PKCE sessions supply access tokens explicitly and cache tasks by subject.
 
 ## AWS deployment structure
 
-`make deploy-backend` runs `scripts/deploy-backend.sh`: it builds/pushes the Lambda image to ECR, deploys `infra/backend.yaml`, invokes migrations through Lambda, and records the HTTPS function URL as `BACKEND_URL`. The stack includes Lambda, Aurora, database networking, an execution role, a database URL secret, and CloudWatch logs. Lambda reaches Aurora on PostgreSQL port 5432; public API traffic uses the HTTPS function URL.
+`make deploy-backend` runs `scripts/deploy-backend.sh`: it builds/pushes the Lambda image to ECR, deploys the private `infra/migrations.yaml` runner using existing DB networking, verifies migrations, then deploys `infra/backend.yaml`, and records the HTTPS function URL as `BACKEND_URL`. The stack includes Lambda, Aurora, database networking, an execution role, a database URL secret, and CloudWatch logs. Lambda reaches Aurora on PostgreSQL port 5432; public API traffic uses the HTTPS function URL.
 
 `make deploy-frontend` runs `scripts/deploy-frontend.sh`: it builds the static export against that backend URL, deploys `infra/frontend.yaml`, uploads files to a private S3 bucket, and invalidates CloudFront's cache. CloudFront serves the browser over HTTPS and uses origin access control to read S3. A CloudFront Function rewrites page paths to exported HTML files. Custom domain/certificate setup is handled separately by `scripts/domain-frontend.sh`.
 
-`make github-role` configures the GitHub OIDC deployment role using `infra/github-oidc.yaml`. `.github/workflows/deploy-backend.yml` deploys on qualifying `main` pushes whose commit message contains `deploy`, or manual dispatch, using temporary OIDC credentials. Frontend deployment remains a local Makefile command.
+`make github-role` configures the GitHub OIDC deployment role using `infra/github-oidc.yaml`. `.github/workflows/deploy-backend.yml` deploys on every `main` push or manual dispatch, requiring a verified release snapshot, using temporary OIDC credentials. Frontend deployment remains a local Makefile command.
 
 ## Runtime versions and dependency definitions
 
@@ -137,4 +137,27 @@ settings for localhost; frontend deployment reads deployed settings before build
 The browser stores its OIDC session and PKCE state in session storage. `/login/`
 starts Managed Login; `/auth/callback/` is a static page processed by the global
 auth provider. The header displays the email and clears the browser session before
-Cognito logout. Existing API authorization is deferred.
+Cognito logout. Backend verification/ownership are implemented; disposable legacy rows remain NULL-owned until separately authorized cleanup.
+
+
+Ownership revision `0003` follows `0002`, adds nullable `owner_id` and an
+owner/created-at index, and preserves all unassigned legacy rows. No user table,
+email ownership, automatic assignment, or data deletion is introduced.
+`backend/app/auth.py` verifies access tokens with cached RSA keys and no runtime
+HTTP calls. `scripts/cognito-snapshot.py` obtains public keys during configuration
+or deployment; rotation requires a backend redeploy. `make backend-auth-config`
+writes public local backend settings to gitignored `backend/.env.auth.local`.
+The private migration runner has no URL and uses `app.migration_handler.handler`;
+the public HTTP handler no longer dispatches migration actions. Deployment stops
+before updating public code if the runner fails. See README for rollout/IAM risks.
+
+
+Controlled releases require read-only preflight, then an explicit manual snapshot
+confirmed available before main push. `PEACH_RELEASE_SNAPSHOT_ID` is supplied to
+CI as a repository variable. The script fails closed on missing existing
+credentials and validates configuration before migration. It checks the public
+UPDATE change set for any RDS removal/addition/replacement, verifies actual
+revision `0003`, schema and preserved rows inside the migration transaction,
+then executes that exact change set. Disposable legacy NULL-owner rows are
+preserved during migration and deployment; cleanup is a separate manual operation
+after successful rollout verification. See README's controlled ownership release procedure.

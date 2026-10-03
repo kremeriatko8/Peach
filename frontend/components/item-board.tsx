@@ -21,7 +21,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  api,
   itemStatuses,
   type Item,
   type ItemList,
@@ -29,6 +28,7 @@ import {
 } from "@/lib/api";
 import { statusMeta } from "@/lib/item-status";
 import { useItems } from "@/lib/items";
+import { useItemApi } from "@/components/item-session";
 import { cn } from "@/lib/utils";
 
 const DRAG_TYPE = "application/x-peach-item";
@@ -43,6 +43,8 @@ type DragInfo = {
 
 export function ItemBoard() {
   const queryClient = useQueryClient();
+  const api = useItemApi();
+  const queryKey = api.queryKey;
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const [newStatus, setNewStatus] = useState<ItemStatus>("todo");
@@ -59,9 +61,9 @@ export function ItemBoard() {
       api.updateItem(id, { status }),
     // Move the card immediately; roll back if the API refuses.
     onMutate: async ({ id, status }) => {
-      await queryClient.cancelQueries({ queryKey: ["items"] });
-      const previous = queryClient.getQueryData<ItemList>(["items"]);
-      queryClient.setQueryData<ItemList>(["items"], (old) =>
+      await queryClient.cancelQueries({ queryKey: queryKey });
+      const previous = queryClient.getQueryData<ItemList>(queryKey);
+      queryClient.setQueryData<ItemList>(queryKey, (old) =>
         old
           ? {
               ...old,
@@ -74,18 +76,21 @@ export function ItemBoard() {
       return { previous };
     },
     onError: (err: Error, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["items"], context.previous);
+      if (!api.session?.signal.aborted && context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous);
       }
       toast.error(err.message);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["items"] }),
+    onSettled: () =>
+      !api.session?.signal.aborted &&
+      queryClient.invalidateQueries({ queryKey }),
   });
 
   const remove = useMutation({
     mutationFn: (item: Item) => api.deleteItem(item.id),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["items"] });
+      if (api.session?.signal.aborted) return;
+      await queryClient.invalidateQueries({ queryKey: queryKey });
       toast.success("Task deleted");
       setFormOpen(false);
     },

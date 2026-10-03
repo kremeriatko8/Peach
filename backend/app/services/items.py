@@ -7,20 +7,31 @@ from app.models import Item
 from app.schemas import ItemCreate, ItemUpdate
 
 
-async def list_items(session: AsyncSession, *, limit: int, offset: int) -> tuple[list[Item], int]:
-    total = await session.scalar(select(func.count()).select_from(Item)) or 0
+async def list_items(
+    session: AsyncSession, *, owner_id: str, limit: int, offset: int
+) -> tuple[list[Item], int]:
+    total = (
+        await session.scalar(
+            select(func.count()).select_from(Item).where(Item.owner_id == owner_id)
+        )
+        or 0
+    )
     result = await session.execute(
-        select(Item).order_by(Item.created_at.desc()).limit(limit).offset(offset)
+        select(Item)
+        .where(Item.owner_id == owner_id)
+        .order_by(Item.created_at.desc(), Item.id)
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars()), total
 
 
-async def get_item(session: AsyncSession, item_id: uuid.UUID) -> Item | None:
-    return await session.get(Item, item_id)
+async def get_item(session: AsyncSession, item_id: uuid.UUID, *, owner_id: str) -> Item | None:
+    return await session.scalar(select(Item).where(Item.id == item_id, Item.owner_id == owner_id))
 
 
-async def create_item(session: AsyncSession, payload: ItemCreate) -> Item:
-    item = Item(**payload.model_dump())
+async def create_item(session: AsyncSession, payload: ItemCreate, *, owner_id: str) -> Item:
+    item = Item(**payload.model_dump(), owner_id=owner_id)
     session.add(item)
     await session.flush()
     await session.refresh(item)

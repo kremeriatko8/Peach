@@ -1,11 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, type ItemList } from "@/lib/api";
+import { ApiError, type ItemList } from "@/lib/api";
+import { useItemApi } from "@/components/item-session";
 
-export async function fetchItems(): Promise<ItemList> {
+export async function fetchItems(
+  listItems: (params: { limit: number; offset: number }) => Promise<ItemList>,
+): Promise<ItemList> {
   const result: ItemList = { items: [], total: 0 };
   let offset = 0;
   do {
-    const page = await api.listItems({ limit: 100, offset });
+    const page = await listItems({ limit: 100, offset });
     result.total = page.total;
     result.items.push(...page.items);
     offset += page.items.length;
@@ -15,5 +18,13 @@ export async function fetchItems(): Promise<ItemList> {
 }
 
 export function useItems() {
-  return useQuery({ queryKey: ["items"], queryFn: fetchItems });
+  const client = useItemApi();
+  return useQuery({
+    queryKey: client.queryKey,
+    enabled: !!client.session,
+    queryFn: ({ signal }) =>
+      fetchItems((params) => client.listItems(params, signal)),
+    retry: (count, error) =>
+      !(error instanceof ApiError && error.status === 401) && count < 1,
+  });
 }

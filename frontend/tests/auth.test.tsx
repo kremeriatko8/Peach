@@ -323,8 +323,13 @@ describe("Peach home", () => {
         items: [makeItem({ id: "last", status: "done" })],
         total: 101,
       });
-    const data = await fetchItems();
+    const data = await fetchItems((params) =>
+      api.listItems(params, { accessToken: "test-access" }),
+    );
     expect(data.items).toHaveLength(101);
-    expect(list).toHaveBeenLastCalledWith({ limit: 100, offset: 100 });
+    expect(list).toHaveBeenLastCalledWith(
+      { limit: 100, offset: 100 },
+      { accessToken: "test-access" },
+    );
   });
 });

@@ -44,6 +44,7 @@ jobs:
           # There is no .env here. Everything else falls back to the script's
           # defaults, and any parameter left empty keeps whatever the stack
           # already has - so a deploy from CI will not undo CORS settings.
+          PEACH_RELEASE_SNAPSHOT_ID: ${{ vars.PEACH_RELEASE_SNAPSHOT_ID }}
           PROJECT_NAME: ${{ vars.PROJECT_NAME }}
 
       - name: Summary
