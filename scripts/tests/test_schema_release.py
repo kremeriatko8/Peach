@@ -90,6 +90,33 @@ def test_incompatible_histories_fail_closed(gate, source, mutation):
         gate.manifest(source)
 
 
+def test_deployment_uses_python_314_before_authentication_and_release():
+    workflow = yaml.load(
+        (ROOT / ".github/workflows/deploy-backend.yml").read_text(),
+        Loader=yaml.BaseLoader,
+    )
+    steps = workflow["jobs"]["deploy"]["steps"]
+    python_steps = [
+        (index, step)
+        for index, step in enumerate(steps)
+        if step.get("uses", "").startswith("actions/setup-python@")
+    ]
+    assert len(python_steps) == 1
+    python_index, python_step = python_steps[0]
+    assert python_step["with"]["python-version"] == "3.14"
+    credentials_index = next(
+        index
+        for index, step in enumerate(steps)
+        if "configure-aws-credentials" in step.get("uses", "")
+    )
+    release_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("run") == "make deploy-backend"
+    )
+    assert python_index < credentials_index < release_index
+
+
 def test_workflow_validates_before_obtaining_deploy_credentials():
     # BaseLoader preserves the YAML key "on" instead of YAML 1.1's boolean.
     workflow = yaml.load(
