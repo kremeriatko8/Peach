@@ -95,6 +95,39 @@ export type ItemList = z.infer<typeof itemListSchema>;
 export type Health = z.infer<typeof healthSchema>;
 export type ItemInput = z.infer<typeof itemInputSchema>;
 
+/* --- meetings --- */
+
+export const meetingSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  starts_at: z.string().datetime({ offset: true }),
+  duration_minutes: z.number().int().min(1).max(1440),
+  participant_count: z.number().int().min(1).max(10000),
+  notes: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export const meetingListSchema = z.object({
+  meetings: z.array(meetingSchema),
+  total: z.number().int().nonnegative(),
+});
+export const meetingInputSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "Title is required")
+    .max(120, "Title is too long"),
+  starts_at: z
+    .string()
+    .datetime({ offset: true, message: "Choose a valid start time" }),
+  duration_minutes: z.number().int().min(1).max(1440),
+  participant_count: z.number().int().min(1).max(10000),
+  notes: z.string().max(2000, "Notes are too long").nullable().optional(),
+});
+export type Meeting = z.infer<typeof meetingSchema>;
+export type MeetingList = z.infer<typeof meetingListSchema>;
+export type MeetingInput = z.infer<typeof meetingInputSchema>;
+
 /* --- endpoints --- */
 
 export type ItemAuth = { accessToken: string; signal?: AbortSignal };
@@ -105,6 +138,50 @@ function requireToken(auth: ItemAuth): ItemAuth {
 }
 
 export const api = {
+  listMeetings: (
+    params: { limit?: number; offset?: number },
+    auth: ItemAuth,
+  ) => {
+    const query = new URLSearchParams();
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    if (params.offset !== undefined) query.set("offset", String(params.offset));
+    const suffix = query.size > 0 ? `?${query}` : "";
+    return request(
+      `/api/v1/meetings${suffix}`,
+      meetingListSchema,
+      undefined,
+      requireToken(auth),
+    );
+  },
+  getMeeting: (id: string, auth: ItemAuth) =>
+    request(
+      `/api/v1/meetings/${encodeURIComponent(id)}`,
+      meetingSchema,
+      undefined,
+      requireToken(auth),
+    ),
+  createMeeting: (payload: MeetingInput, auth: ItemAuth) =>
+    request(
+      "/api/v1/meetings",
+      meetingSchema,
+      { method: "POST", body: JSON.stringify(payload) },
+      requireToken(auth),
+    ),
+  updateMeeting: (id: string, payload: Partial<MeetingInput>, auth: ItemAuth) =>
+    request(
+      `/api/v1/meetings/${encodeURIComponent(id)}`,
+      meetingSchema,
+      { method: "PATCH", body: JSON.stringify(payload) },
+      requireToken(auth),
+    ),
+  deleteMeeting: (id: string, auth: ItemAuth) =>
+    request(
+      `/api/v1/meetings/${encodeURIComponent(id)}`,
+      z.undefined(),
+      { method: "DELETE" },
+      requireToken(auth),
+    ),
+
   readiness: () => request("/api/v1/health/ready", healthSchema),
 
   listItems: (params: { limit?: number; offset?: number }, auth: ItemAuth) => {

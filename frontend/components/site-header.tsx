@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/", label: "Dashboard" },
   { href: "/items", label: "Board" },
+  { href: "/meetings", label: "Meetings" },
 ];
 
 function AccountNavigation() {

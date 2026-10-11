@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.7",
     "mangum>=0.22.0",
     "pyjwt[crypto]>=2.10,<3",
+    "boto3>=1.43.110",
 ]
 
 [dependency-groups]

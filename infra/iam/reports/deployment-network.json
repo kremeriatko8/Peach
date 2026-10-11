@@ -1,0 +1,82 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ApprovedGatewayVpcAndRoute",
+      "Effect": "Allow",
+      "Action": "ec2:CreateVpcEndpoint",
+      "Resource": [
+        "arn:aws:ec2:us-east-1:968053399627:vpc/vpc-0def9c995c9c73f75",
+        "arn:aws:ec2:us-east-1:968053399627:route-table/rtb-0fb1d48c2f3f092c2"
+      ]
+    },
+    {
+      "Sid": "CreateOnlyStackOwnedS3Endpoint",
+      "Effect": "Allow",
+      "Action": "ec2:CreateVpcEndpoint",
+      "Resource": "arn:aws:ec2:us-east-1:968053399627:vpc-endpoint/*",
+      "Condition": {
+        "StringEquals": {
+          "ec2:VpceServiceName": "com.amazonaws.us-east-1.s3",
+          "aws:RequestTag/aws:cloudformation:stack-name": "peach-reports"
+        }
+      }
+    },
+    {
+      "Sid": "OnlyApprovedEndpointRouteUpdates",
+      "Effect": "Allow",
+      "Action": "ec2:ModifyVpcEndpoint",
+      "Resource": "arn:aws:ec2:us-east-1:968053399627:route-table/rtb-0fb1d48c2f3f092c2"
+    },
+    {
+      "Sid": "ManageOnlyReportingStackEndpoint",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:ModifyVpcEndpoint",
+        "ec2:DeleteVpcEndpoints",
+        "ec2:CreateTags",
+        "ec2:DeleteTags"
+      ],
+      "Resource": "arn:aws:ec2:us-east-1:968053399627:vpc-endpoint/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/aws:cloudformation:stack-name": "peach-reports"
+        },
+        "StringLike": {
+          "aws:ResourceTag/aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/*"
+        }
+      }
+    },
+    {
+      "Sid": "TagNewEndpoint",
+      "Effect": "Allow",
+      "Action": "ec2:CreateTags",
+      "Resource": "arn:aws:ec2:us-east-1:968053399627:vpc-endpoint/*",
+      "Condition": {
+        "StringEquals": {
+          "ec2:CreateAction": "CreateVpcEndpoint",
+          "aws:RequestTag/aws:cloudformation:stack-name": "peach-reports"
+        }
+      }
+    },
+    {
+      "Sid": "RegionalNetworkMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeVpcs",
+        "ec2:DescribeVpcEndpoints",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeNetworkAcls"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}

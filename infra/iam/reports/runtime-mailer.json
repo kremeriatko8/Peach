@@ -1,0 +1,54 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "MailerLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer:log-stream:*"
+    },
+    {
+      "Sid": "ReadOnlyScopedCSV",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::peach-reports-968053399627-us-east-1/reports/__REPORT_SCOPE_ID__/*.csv"
+    },
+    {
+      "Sid": "ConditionalDeliveryClaims",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:UpdateItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-1:968053399627:table/peach-report-mail-state"
+    },
+    {
+      "Sid": "SendOnlyVerifiedSenderToApprovedInbox",
+      "Effect": "Allow",
+      "Action": "ses:SendRawEmail",
+      "Resource": "arn:aws:ses:us-east-1:968053399627:identity/__SENDER_EMAIL__",
+      "Condition": {
+        "StringEquals": {
+          "ses:FromAddress": "__SENDER_EMAIL__"
+        },
+        "ForAllValues:StringEquals": {
+          "ses:Recipients": [
+            "__RECIPIENT_EMAIL__"
+          ]
+        },
+        "Null": {
+          "ses:Recipients": "false"
+        }
+      }
+    },
+    {
+      "Sid": "RetainAsyncFailureEnvelope",
+      "Effect": "Allow",
+      "Action": "sqs:SendMessage",
+      "Resource": "arn:aws:sqs:us-east-1:968053399627:peach-report-mailer-failures"
+    }
+  ]
+}

@@ -1,0 +1,353 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Peach reporting only. Existing VPC/database/image; schedule disabled until manual verification.
+Parameters:
+  ProjectName:
+    Type: String
+    Default: peach
+    AllowedPattern: '[a-z][a-z0-9-]{0,19}'
+  ImageUri:
+    Type: String
+    AllowedPattern: '.+\.dkr\.ecr\..+\.amazonaws\.com/.+@sha256:[a-f0-9]{64}'
+    Description: Immutable backend image containing Phase 3 handlers; never a mutable tag.
+  Architecture:
+    Type: String
+    Default: arm64
+    AllowedValues: [arm64, x86_64]
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  RouteTableIds:
+    Type: CommaDelimitedList
+    Description: Actual route tables used by ALL selected Lambda subnets; verify associations before deployment.
+  BackendFunctionSecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: Reuse existing backend function SG allowed by existing Aurora DB SG; no ingress changes.
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+    AllowedPattern: 'postgresql\+asyncpg://.+'
+    Description: Existing database URL; no new database, migrations or runtime Secrets Manager access.
+  ReportOwnerSub:
+    Type: String
+    NoEcho: true
+    MinLength: 1
+    MaxLength: 128
+  ReportScopeId:
+    Type: String
+    AllowedPattern: '[a-z0-9][a-z0-9-]{0,47}'
+    Description: Opaque stable scope for ONE owner. Use a fresh scope if owner changes.
+  ReportRecipientEmail:
+    Type: String
+    NoEcho: true
+    AllowedPattern: '[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+'
+  ReportFromEmail:
+    Type: String
+    NoEcho: true
+    AllowedPattern: '[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+'
+  ReportTimezone:
+    Type: String
+    Default: Europe/Kyiv
+    AllowedValues: [Europe/Kyiv]
+  AllowDirectEvents:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['false', 'true']
+    Description: Temporary isolated lab demonstration only; leave false for normal SQS flow.
+Resources:
+  BuilderDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-report-builder-dlq'
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      RedriveAllowPolicy:
+        redrivePermission: byQueue
+        sourceQueueArns: [!Sub 'arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${ProjectName}-report-work']
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  WorkQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-report-work'
+      VisibilityTimeout: 720
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt BuilderDlq.Arn
+        maxReceiveCount: 3
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  SchedulerDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-report-scheduler-dlq'
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  MailerFailureQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-report-mailer-failures'
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  MailState:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub '${ProjectName}-report-mail-state'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{AttributeName: report_id, AttributeType: S}]
+      KeySchema: [{AttributeName: report_id, KeyType: HASH}]
+      SSESpecification: {SSEEnabled: true}
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  BuilderLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProjectName}-report-builder'
+      RetentionInDays: 7
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  MailerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProjectName}-report-mailer'
+      RetentionInDays: 7
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  BuilderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-report-builder'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: lambda.amazonaws.com}, Action: 'sts:AssumeRole'}]
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+      Policies:
+        - PolicyName: report-builder
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['logs:CreateLogStream', 'logs:PutLogEvents']
+                Resource: !GetAtt BuilderLogGroup.Arn
+              - Effect: Allow
+                Action: ['ec2:CreateNetworkInterface', 'ec2:DescribeNetworkInterfaces', 'ec2:DescribeSubnets', 'ec2:DeleteNetworkInterface', 'ec2:AssignPrivateIpAddresses', 'ec2:UnassignPrivateIpAddresses']
+                Resource: '*'
+              - Effect: Allow
+                Action: ['sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:GetQueueAttributes']
+                Resource: !GetAtt WorkQueue.Arn
+              - Effect: Allow
+                Action: 's3:PutObject'
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-reports-${AWS::AccountId}-${AWS::Region}/reports/${ReportScopeId}/*.csv'
+  MailerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-report-mailer'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: lambda.amazonaws.com}, Action: 'sts:AssumeRole'}]
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+      Policies:
+        - PolicyName: report-mailer
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['logs:CreateLogStream', 'logs:PutLogEvents']
+                Resource: !GetAtt MailerLogGroup.Arn
+              - Effect: Allow
+                Action: 's3:GetObject'
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-reports-${AWS::AccountId}-${AWS::Region}/reports/${ReportScopeId}/*.csv'
+              - Effect: Allow
+                Action: ['dynamodb:UpdateItem', 'dynamodb:GetItem']
+                Resource: !GetAtt MailState.Arn
+              - Effect: Allow
+                Action: 'ses:SendRawEmail'
+                Resource: !Sub 'arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                Condition:
+                  StringEquals: {'ses:FromAddress': !Ref ReportFromEmail}
+                  ForAllValues:StringEquals: {'ses:Recipients': [!Ref ReportRecipientEmail]}
+              - Effect: Allow
+                Action: 'sqs:SendMessage'
+                Resource: !GetAtt MailerFailureQueue.Arn
+  Builder:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-report-builder'
+      PackageType: Image
+      Code: {ImageUri: !Ref ImageUri}
+      ImageConfig: {Command: [app.reporting.builder.handler]}
+      Architectures: [!Ref Architecture]
+      Role: !GetAtt BuilderRole.Arn
+      MemorySize: 512
+      Timeout: 120
+      LoggingConfig: {LogGroup: !Ref BuilderLogGroup}
+      VpcConfig:
+        SubnetIds: !Ref SubnetIds
+        SecurityGroupIds: !Ref BackendFunctionSecurityGroupIds
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          DB_POOLING: 'false'
+          APP_ENV: production
+          REPORT_OWNER_SUB: !Ref ReportOwnerSub
+          REPORT_SCOPE_ID: !Ref ReportScopeId
+          REPORT_TIMEZONE: !Ref ReportTimezone
+          REPORT_BUCKET: !Sub '${ProjectName}-reports-${AWS::AccountId}-${AWS::Region}'
+          REPORT_QUEUE_ARN: !GetAtt WorkQueue.Arn
+          REPORT_ALLOW_DIRECT: !Ref AllowDirectEvents
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  BuilderMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt WorkQueue.Arn
+      FunctionName: !Ref Builder
+      BatchSize: 1
+      MaximumBatchingWindowInSeconds: 0
+      ScalingConfig: {MaximumConcurrency: 2}
+      Enabled: true
+  Mailer:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-report-mailer'
+      PackageType: Image
+      Code: {ImageUri: !Ref ImageUri}
+      ImageConfig: {Command: [app.reporting.mailer.handler]}
+      Architectures: [!Ref Architecture]
+      Role: !GetAtt MailerRole.Arn
+      MemorySize: 256
+      Timeout: 60
+      LoggingConfig: {LogGroup: !Ref MailerLogGroup}
+      Environment:
+        Variables:
+          REPORT_SCOPE_ID: !Ref ReportScopeId
+          REPORT_TIMEZONE: !Ref ReportTimezone
+          REPORT_BUCKET: !Sub '${ProjectName}-reports-${AWS::AccountId}-${AWS::Region}'
+          REPORT_RECIPIENT_EMAIL: !Ref ReportRecipientEmail
+          REPORT_FROM_EMAIL: !Ref ReportFromEmail
+          REPORT_DEDUP_TABLE: !Ref MailState
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  MailerAsyncConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref Mailer
+      Qualifier: '$LATEST'
+      MaximumRetryAttempts: 2
+      MaximumEventAgeInSeconds: 21600
+      DestinationConfig:
+        OnFailure: {Destination: !GetAtt MailerFailureQueue.Arn}
+  MailerS3Permission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Mailer
+      Action: 'lambda:InvokeFunction'
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-reports-${AWS::AccountId}-${AWS::Region}'
+  ReportsBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: [MailerS3Permission, MailerAsyncConfig]
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub '${ProjectName}-reports-${AWS::AccountId}-${AWS::Region}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls: {Rules: [{ObjectOwnership: BucketOwnerEnforced}]}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration: [{ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}}]
+      LifecycleConfiguration:
+        Rules: [{Id: expire-reports, Status: Enabled, Prefix: reports/, ExpirationInDays: 90}]
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt Mailer.Arn
+            Filter:
+              S3Key:
+                Rules: [{Name: prefix, Value: reports/}, {Name: suffix, Value: .csv}]
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  ReportsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ReportsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt ReportsBucket.Arn, !Sub '${ReportsBucket.Arn}/*']
+            Condition: {Bool: {'aws:SecureTransport': 'false'}}
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      VpcEndpointType: Gateway
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      RouteTableIds: !Ref RouteTableIds
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # Shared route tables serve existing S3 clients as well as the builder.
+          # Endpoint permission does not replace IAM or bucket authorization.
+          - Sid: PreserveExistingS3Authorization
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:*'
+            Resource: '*'
+  ScheduleGroup:
+    Type: AWS::Scheduler::ScheduleGroup
+    Properties:
+      Name: !Sub '${ProjectName}-reports'
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-report-scheduler'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: scheduler.amazonaws.com}
+            Action: 'sts:AssumeRole'
+            Condition:
+              StringEquals: {'aws:SourceAccount': !Ref AWS::AccountId}
+              ArnEquals: {'aws:SourceArn': !GetAtt ScheduleGroup.Arn}
+      Policies:
+        - PolicyName: send-report-work
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'sqs:SendMessage'
+                Resource: [!GetAtt WorkQueue.Arn, !GetAtt SchedulerDlq.Arn]
+      Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
+  WeeklySchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub '${ProjectName}-weekly-report'
+      GroupName: !Ref ScheduleGroup
+      State: DISABLED
+      ScheduleExpression: 'cron(0 7 ? * MON *)'
+      ScheduleExpressionTimezone: !Ref ReportTimezone
+      FlexibleTimeWindow: {Mode: 'OFF'}
+      Target:
+        Arn: !GetAtt WorkQueue.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+        DeadLetterConfig: {Arn: !GetAtt SchedulerDlq.Arn}
+        RetryPolicy: {MaximumEventAgeInSeconds: 86400, MaximumRetryAttempts: 3}
+        Input: '{"source":"schedule","scheduled_time":"<aws.scheduler.scheduled-time>","correlation_id":"<aws.scheduler.execution-id>","schedule_arn":"<aws.scheduler.schedule-arn>","attempt":"<aws.scheduler.attempt-number>"}'
+Outputs:
+  WorkQueueUrl: {Value: !Ref WorkQueue}
+  WorkQueueArn: {Value: !GetAtt WorkQueue.Arn}
+  BuilderDlqUrl: {Value: !Ref BuilderDlq}
+  SchedulerDlqUrl: {Value: !Ref SchedulerDlq}
+  MailerFailureQueueUrl: {Value: !Ref MailerFailureQueue}
+  ReportsBucketName: {Value: !Ref ReportsBucket}
+  BuilderFunctionName: {Value: !Ref Builder}
+  MailerFunctionName: {Value: !Ref Mailer}
+  ScheduleName: {Value: !Ref WeeklySchedule}
+  ScheduleGroupName: {Value: !Ref ScheduleGroup}
+  MailStateTableName: {Value: !Ref MailState}

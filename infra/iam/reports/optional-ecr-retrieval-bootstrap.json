@@ -1,0 +1,14 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReviewedLambdaRetrievalPolicyOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetRepositoryPolicy",
+        "ecr:SetRepositoryPolicy"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:968053399627:repository/peach-backend"
+    }
+  ]
+}

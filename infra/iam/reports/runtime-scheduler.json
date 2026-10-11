@@ -1,0 +1,14 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SendWorkOrDeliveryFailure",
+      "Effect": "Allow",
+      "Action": "sqs:SendMessage",
+      "Resource": [
+        "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+        "arn:aws:sqs:us-east-1:968053399627:peach-report-scheduler-dlq"
+      ]
+    }
+  ]
+}

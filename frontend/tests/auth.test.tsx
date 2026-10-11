@@ -74,6 +74,22 @@ beforeEach(() => {
 });
 
 describe("authentication", () => {
+  it("keeps Dashboard and Board navigation alongside the new Meetings tab", () => {
+    mocked.auth.isAuthenticated = true;
+    render(<SiteHeader />);
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+    expect(screen.getByRole("link", { name: "Board" })).toHaveAttribute(
+      "href",
+      "/items",
+    );
+    expect(screen.getByRole("link", { name: "Meetings" })).toHaveAttribute(
+      "href",
+      "/meetings",
+    );
+  });
   it("creates a real authorization request with S256 PKCE and the exact callback", async () => {
     const config = authConfig();
     if (!config) throw new Error("Missing test config");

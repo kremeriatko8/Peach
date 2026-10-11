@@ -370,11 +370,13 @@ internet -> Lambda function URL (HTTPS) -> Lambda (FastAPI via Mangum, in the VP
 `scripts/deploy-backend.sh` drives it, in order:
 
 1. validates the existing backend/database/network, trusted credentials, auth/JWKS,
-   complete Lambda environments, and an explicitly approved available snapshot;
+   complete Lambda environments, and classifies the migration manifest; schema
+   releases additionally require exact manifest approval and a fresh manual snapshot;
 2. builds/pushes the image and prepares a checked public UPDATE change set;
-3. updates the private migration runner, migrates transactionally to `0003`, and
+3. for schema releases only, updates the private migration runner, migrates transactionally to `0004`, and
    verifies actual database revision/schema and unchanged legacy rows;
-4. executes the checked public backend change set only after verification;
+4. executes the checked public backend change set after successful preflight
+   and, when required, migration verification;
 5. writes `BACKEND_URL` for the separate frontend deployment.
 
 This release script requires an existing backend, auth stack and ECR repository.
@@ -489,9 +491,11 @@ make github-role      # once: create the role Actions assumes
 ```
 
 Every push to `main` runs `make deploy-backend`; commit messages do not gate it.
-Before pushing, complete read-only production preflight and confirm a manual
-snapshot is available. Set its ID in repository variable
-`PEACH_RELEASE_SNAPSHOT_ID`. Deployment fails closed without that verified backup.
+Ordinary releases with the successfully recorded migration manifest need no manual
+preparation or snapshot. Schema-changing releases require exact manifest approval
+and a fresh manual snapshot before deployment. Set its ID in repository variable
+`PEACH_RELEASE_SNAPSHOT_ID` and set `PEACH_APPROVED_MIGRATION_SHA256` to the
+reviewed manifest. Schema deployment fails closed without both safeguards.
 Manual `workflow_dispatch` uses the same safeguards. See the controlled release
 procedure below; do not run CI and manual backend deployment concurrently.
 
@@ -518,7 +522,7 @@ CLI is installed and logged in, `make github-role` sets both for you; otherwise 
 paste into *Settings → Secrets and variables → Actions*. Neither is secret — the ARN is useless
 without a token minted by this repository's workflows.
 
-**CI has no `.env`, and that is fine.** Any parameter the deploy script resolves to an empty value
+**CI ignores local `.env` and verifies its temporary OIDC identity.** Any parameter the deploy script resolves to an empty value
 is left out of the CloudFormation call, and CloudFormation then keeps whatever the stack already
 has. So a deploy from CI will not widen `API_CORS_ORIGINS` back to `*` — the settings you made
 locally survive. CI also writes `BACKEND_URL` into a throwaway `.env` on the runner; locally, run
@@ -663,10 +667,12 @@ OIDC/PKCE, Managed Login, and the Dashboard/Board visual design are preserved.
 The updated deployment path requires the **existing backend and auth stacks**.
 New installations need a separately reviewed database/bootstrap path first.
 
-1. Build/push the new image and resolve its immutable ECR digest.
-2. Deploy `${PROJECT_NAME}-migrations` from `infra/migrations.yaml`, using the
+1. Classify the migration manifest and complete configuration preflight. If it is
+   missing/changed, require exact manifest approval and a fresh manual snapshot.
+   Build/push the new image and resolve its immutable ECR digest.
+2. For schema-changing releases only, deploy `${PROJECT_NAME}-migrations` from `infra/migrations.yaml`, using the
    existing public function’s role, VPC configuration, and database URL.
-3. Invoke that private runner with `{"action":"migrate"}` and verify a successful
+3. For schema-changing releases only, invoke that private runner with `{"action":"migrate"}` and verify a successful
    response at the expected Alembic revision.
 4. Only then update `infra/backend.yaml` with the new image and public verifier
    settings. Database/network identity changes are refused by this path.
@@ -711,7 +717,7 @@ backend deployment concurrently with CI.
 `bash scripts/deploy-backend.sh --preflight-only`. This validates existing
 credentials/database/network/auth/JWKS, environments, templates and ECR without
 building, deploying or invoking Lambda. It deliberately does not require a
-snapshot; the actual release always does.
+snapshot; only schema-changing releases require one.
 
 **Explicit backup, later only:** run `bash scripts/snapshot-backend.sh` with the
 backup operator's credentials. It resolves `DbCluster` from the existing backend
@@ -723,8 +729,10 @@ new-cluster recovery/cutover operation, not an automatic in-place rollback.
 Set the returned non-secret `PEACH_RELEASE_SNAPSHOT_ID` as the GitHub repository
 variable before pushing the release to main, or export it for a manual release.
 Deployment requires an available manual snapshot of this exact cluster less
-than 24 hours old. Remove the variable after the controlled release; subsequent
-releases require a newly approved backup. Local `.env` is never available to CI:
+than 24 hours old for schema releases. Also supply
+`PEACH_APPROVED_MIGRATION_SHA256` from `python3 scripts/schema-release.py`. Remove
+both variables after the controlled release; ordinary releases need neither.
+Changed migration/model/runner content requires newly approved preparation. Local `.env` is never available to CI:
 production database/network/CORS parameters are read from the existing stack,
 credentials from its existing secret, and Cognito/JWKS from the auth stack.
 A missing credential fails closed. No replacement password is generated.
@@ -733,8 +741,8 @@ The release validates configuration and complete Lambda environment sizes,
 builds/publishes an immutable image, then creates and checks the public backend
 UPDATE change set **before migration**. Any RDS addition, removal or possible
 replacement is refused. It updates the private runner to the same image, runs
-migration `0003` and verifies the actual revision, column, index and unchanged
-rows/ownership transactionally before executing that exact checked change set.
+migration `0004` and verifies the actual revision, task ownership column/index,
+Meetings schema, and unchanged task/meeting rows transactionally before executing that exact checked change set.
 A failed migration or verification rolls back its transaction and leaves the
 public image unchanged. An empty change set stops without migration. Inspect
 failed/unused change sets before retrying; do not execute them manually.
@@ -761,3 +769,210 @@ contents. Any discrepancy rolls back. No public endpoint, caller-supplied SQL or
 filters are supported. This cleanup never runs during migration or deployment
 and has not been performed. Keep the recovery snapshot until cleanup and health
 verification both succeed.
+
+
+## Meetings (revision 0004)
+
+Peach now has a separate **Meetings** tab at `/meetings`, alongside Dashboard and
+Board. Signed-in users can record, view, edit, and delete their own meetings.
+The responsive list shows the latest start times first, with 20 meetings per
+page, duration, participant count, and optional notes. Create/edit dialogs
+validate inputs; deletion requires confirmation. Requests and caches are scoped
+to the active Cognito subject, and switching accounts cancels requests, closes
+private dialogs, and removes both task and meeting caches.
+
+### API contract
+
+All `/api/v1/meetings` endpoints require the same verified Cognito **access
+token** as tasks. The server supplies ownership from `sub`; clients cannot set
+or change an owner. Another user's ID returns 404 for GET, PATCH, and DELETE.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/v1/meetings?limit=20&offset=0` | `{ meetings: [...], total: number }`, newest start first |
+| POST | `/api/v1/meetings` | 201 with the created meeting |
+| GET | `/api/v1/meetings/{id}` | The current user's meeting |
+| PATCH | `/api/v1/meetings/{id}` | Updated meeting; omitted fields stay unchanged |
+| DELETE | `/api/v1/meetings/{id}` | 204 |
+
+Create requires a trimmed, nonblank `title` (1–120 characters), `starts_at` as an
+ISO timestamp with an explicit UTC offset, integer `duration_minutes` (1–1,440),
+and integer `participant_count` (1–10,000, including the organizer). `notes` is
+optional/nullable (maximum 2,000 characters). PATCH rejects explicit nulls for
+required fields; `notes: null` clears notes. Unknown fields, invalid values, and
+naive timestamps return 422. Responses include UUID `id`, creation/update
+timestamps, and omit ownership. PostgreSQL uses timezone-aware timestamps;
+the API normalizes start times to UTC.
+
+### Europe/Kyiv dates and daylight saving
+
+The UI always displays and edits **Europe/Kyiv** wall-clock time, independently
+of the browser's local timezone. It round-trips nearby timezone offsets before
+sending a UTC instant. Spring-forward times that do not exist are rejected.
+Fall-back times that occur twice require choosing **Earlier** or **Later**, with
+the UTC offset shown. Editing a repeated time retains its existing occurrence;
+leaving the time unchanged also preserves subsecond precision. The list displays
+the offset so the two occurrences can be distinguished. The API accepts an
+unambiguous offset-bearing instant rather than an ambiguous local-time string.
+
+### Additive migration and controlled release
+
+`0004_create_meetings.py` follows ownership revision `0003` and only creates the
+`meetings` table, its primary key/check constraints, and
+`ix_meetings_owner_id_starts_at`. It does not update, delete, or reassign tasks.
+The migration runner still locks and compares all task rows and ownership. It
+now targets exactly `0004`, verifies the actual Meetings column types,
+nullability, defaults, constraints, primary key, and owner/start-time index, and
+also preserves existing meeting rows during repeated releases. A failed check
+rolls back the transaction. Deployment requires all old ownership/data checks
+plus Meetings schema/data proofs and matching integer row counts before the
+exact previously checked backend change set can execute.
+
+Snapshot freshness, existing credentials/network identity, immutable image
+pinning, environment limits, migration-before-code ordering, and RDS replacement
+rejection remain required. **Pushing to main triggers deployment**; review and
+prepare the release before pushing. This change itself does not deploy anything.
+Routine rollback retains the additive schema; downgrading `0004` deletes
+meetings. The separate legacy-cleanup operation remains guarded to revision
+`0003` and is not part of the Meetings release; do not invoke it at `0004`.
+
+### Local verification
+
+Backend tests require an isolated, disposable local PostgreSQL database with a
+name ending in `_test`. The test fixture rejects remote hosts, non-test database
+names, and URL query/fragment overrides before opening a connection. It drops
+and recreates the test schema, so never point it at valuable local data.
+
+For an already verified disposable server, run from `backend`:
+
+```bash
+TEST_DATABASE_URL=postgresql+asyncpg://test_user:test_password@127.0.0.1:TEST_PORT/peach_meetings_test uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+```
+
+From `frontend`, run `pnpm test`, `pnpm lint`, `pnpm exec tsc --noEmit`,
+`pnpm format:check`, and `NEXT_OUTPUT=export pnpm build`. From the repository root,
+`python3 -m unittest discover -s scripts/tests -v` tests deployment orchestration
+using fake AWS/Docker/HTTP commands and verifies fail-closed behavior.
+
+Tests cover authenticated CRUD, cross-user isolation, malformed inputs,
+unchanged tasks, real additive upgrades from 0002/0003, rollback on failed
+schema/data verification, repeated releases, account switching/late responses,
+DST gaps/folds, dialogs, failures/retries, and pagination. Reporting and its AWS
+resources are not implemented in this phase.
+
+### Local weekly productivity reports (Phase 2)
+
+The reusable async interface is `WeeklyReportBuilder(ReportConfig(owner_sub), session,
+clock).build_weekly_report("2026-W40") -> bytes` in `backend/app/reports/builder.py`.
+Construct `ReportConfig` only from trusted operator configuration, never a request's
+owner or recipient fields. The builder has no AWS dependencies or recipient handling.
+Inject a timezone-aware clock for reproducible output. Callers should supply a
+read-only, repeatable-read snapshot session, as the local adapter does.
+
+Reporting weeks are strict ISO `YYYY-Www` weeks in **Europe/Kyiv**, Monday 00:00
+inclusive through the next Monday 00:00 exclusive. Each boundary is converted
+independently to UTC, so DST weeks can contain 167 or 169 hours. ISO year rollover
+and week 53 are validated by the calendar. A meeting belongs to the week of its
+start and contributes its entire recorded duration, even if it ends outside that
+week. These are recorded duration totals, not unique elapsed time or participant-hours.
+
+The UTF-8 CSV contains:
+
+- Metadata: ISO week, timezone, UTC boundaries, generation time and future object
+  key `reports/YYYY-Www.csv`. It does not expose the owner's Cognito subject.
+- Meeting count and total recorded minutes.
+- Previous ISO week's count/minutes, absolute differences and percentage changes.
+  Percentage change is `N/A` when the previous value is zero, including two empty
+  weeks; otherwise it is rounded to two decimal places.
+- The five longest meetings: title, Kyiv start with explicit UTC offset, duration
+  and participant count. Ties sort by start ascending, then UUID ascending.
+- Optional tasks: tasks created in the selected week (using `created_at`) and
+  **current** To do/In progress/Done counts across all creation dates, with an
+  explicit snapshot timestamp. These counts are not historical weekly progress;
+  `updated_at` is never treated as a completion date.
+
+CSV quoting preserves commas, quotes and newlines. User titles beginning with
+spreadsheet formula markers (including leading whitespace) or tab/CR/LF are
+prefixed with an apostrophe. Rendering is deterministic for identical data and a
+fixed timestamp. No status history, schema changes, backfills or seeds are needed.
+
+#### Generate from the disposable local development stack
+
+Use the existing dedicated `peach-meetings-local` stack established for Meetings
+browser testing, **not** the ordinary Compose stack with its persistent database.
+The runner verifies the `db` and `backend` container project/service/purpose
+labels, running state, private dedicated network, loopback database port binding,
+matching credentials/database target, and PostgreSQL **tmpfs** storage. It connects
+using the inspected database container IP, then checks the actual database name
+and data directory. Missing or mismatched proof fails closed before owner/report
+queries. It does not start services, migrate, seed, or access AWS.
+
+First list anonymous owner choices and deliberately configure one:
+
+```bash
+make report-owners
+make report-owner OWNER=1
+make report-local WEEK=2026-W40
+```
+
+Owner numbers reflect sorted subjects currently present in local meetings/tasks;
+subjects themselves are never printed. In a multi-owner local database, select the
+intended test account deliberately; the private ignored `.env.report.local` stores
+that subject (mode 0600). It must remain local operator configuration. Re-select
+an owner if the disposable database is recreated. Owners without any local
+meetings/tasks cannot be selected yet: create a resource through authenticated
+Peach first. A selected owner with no meetings in the requested week receives a
+valid zero-meeting report.
+
+Output is `reports-local/2026-W40.csv`, an ignored private local artifact. The
+command prints its path and meeting/minute totals. Each report uses a read-only
+repeatable-read transaction; every meeting/task query filters the configured
+owner. Existing null/unowned tasks are excluded. The CLI intentionally supports
+only this verified disposable stack, and refuses production, persistent or
+unverifiable targets. PostgreSQL tmpfs data disappears when its container is
+recreated/stopped; this command never deletes it.
+
+Backend verification uses the existing isolated `_test` database guard; do not
+point tests at the development data or production. Report tests cover ISO/DST
+boundaries, comparisons, ownership, task semantics, CSV safety and CLI refusal.
+The backend currently has no configured static type checker; report interfaces
+are annotated and use the existing Ruff/pytest checks.
+
+S3 upload, Lambda/event handlers, scheduling, queues, retries and email delivery
+are deferred to the AWS phase. No reporting infrastructure or frontend pages
+are added here.
+
+### Event-driven reporting (Phase 3, local implementation only)
+
+`infra/reports.yaml` defines disabled-by-default Monday 07:00 Europe/Kyiv
+Scheduler → SQS → VPC builder → private S3 → outside-VPC mailer → SES. It reuses
+the Phase 2 report core, existing database/network and an immutable backend image.
+Conditional S3 writes suppress duplicate publications; DynamoDB claims/leases
+suppress ordinary duplicate emails with a documented SES/state-update limitation.
+
+`make reports-validate` validates locally; `make reports-prepare
+PARAMETERS_FILE=.env.reports-parameters.local` prepares private ignored artifacts
+without AWS calls. **After a separately authorized deployment**, `make report-now
+WEEK=2026-W40` performs a mutating SQS SendMessage, never a direct Lambda invocation.
+It must not be executed as part of this implementation phase. `make report-local`
+remains unchanged. Backend production deployment remains automatic on every main push, with
+validation and narrowly scoped schema-release gates; manual dispatch is also
+available. No reporting deploy/activation workflow or automatic IAM expansion is provided.
+
+See [the reporting guide](docs/reporting.md) for every resource/setting, trusted
+owner/inbox configuration, SES and permissions prerequisites, **NOT EXECUTED**
+deployment checklist, route-table/endpoint review, DLQ/recovery procedures, two
+report keys/email evidence and cost/security discussion.
+
+## Automatic deployment and exceptional release preparation
+
+Every main push runs backend tests, Ruff, deployment safety/compatibility checks,
+workflow/shell/template validation and a Lambda image build before OIDC deployment.
+Ordinary releases skip snapshots and migration invocation when their manifest
+matches successful release evidence. Missing/changed migration evidence requires
+exact approval plus a fresh manual snapshot; failures stop deployment. The frontend
+remains manually deployed, and the first reporting stack uses a separately reviewed
+change set. See [the CI/CD release policy](docs/deployment.md) for revision `0004`
+preparation, credentials, failure handling, rollback and future reporting updates.

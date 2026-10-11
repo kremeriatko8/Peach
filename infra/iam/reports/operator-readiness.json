@@ -1,0 +1,186 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReportsAndBackendStackMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:ListStackResources"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/*",
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-backend/*"
+      ]
+    },
+    {
+      "Sid": "InspectReportingFunctions",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetFunctionConcurrency",
+        "lambda:GetPolicy",
+        "lambda:GetFunctionEventInvokeConfig"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer:$LATEST"
+      ]
+    },
+    {
+      "Sid": "ReviewedBackendImage",
+      "Effect": "Allow",
+      "Action": "lambda:GetFunction",
+      "Resource": "arn:aws:lambda:us-east-1:968053399627:function:peach-backend"
+    },
+    {
+      "Sid": "RegionalNetworkReadiness",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeVpcs",
+        "ec2:DescribeVpcEndpoints",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeNetworkAcls"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "AccountConcurrency",
+      "Effect": "Allow",
+      "Action": "lambda:GetAccountSettings",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "FindMappingUuid",
+      "Effect": "Allow",
+      "Action": "lambda:ListEventSourceMappings",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "InspectBuilderMapping",
+      "Effect": "Allow",
+      "Action": "lambda:GetEventSourceMapping",
+      "Resource": "arn:aws:lambda:us-east-1:968053399627:event-source-mapping:*",
+      "Condition": {
+        "ArnEquals": {
+          "lambda:FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder"
+        }
+      }
+    },
+    {
+      "Sid": "InspectImageRetention",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeImages",
+        "ecr:GetLifecyclePolicy",
+        "ecr:GetRepositoryPolicy"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:968053399627:repository/peach-backend"
+    },
+    {
+      "Sid": "SESAccountStatus",
+      "Effect": "Allow",
+      "Action": "ses:GetAccount",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "OneVerifiedIdentity",
+      "Effect": "Allow",
+      "Action": "ses:GetEmailIdentity",
+      "Resource": "arn:aws:ses:us-east-1:968053399627:identity/__SENDER_EMAIL__"
+    },
+    {
+      "Sid": "ReportQueueMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:ListQueueTags"
+      ],
+      "Resource": [
+        "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+        "arn:aws:sqs:us-east-1:968053399627:peach-report-builder-dlq",
+        "arn:aws:sqs:us-east-1:968053399627:peach-report-scheduler-dlq",
+        "arn:aws:sqs:us-east-1:968053399627:peach-report-mailer-failures"
+      ]
+    },
+    {
+      "Sid": "ScheduleMetadata",
+      "Effect": "Allow",
+      "Action": "scheduler:GetSchedule",
+      "Resource": "arn:aws:scheduler:us-east-1:968053399627:schedule/peach-reports/peach-weekly-report"
+    },
+    {
+      "Sid": "ScopeOnlyObjectListing",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::peach-reports-968053399627-us-east-1",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "reports/__REPORT_SCOPE_ID__/",
+            "reports/__REPORT_SCOPE_ID__/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "ReadPrivateCSV",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::peach-reports-968053399627-us-east-1/reports/__REPORT_SCOPE_ID__/*.csv"
+    },
+    {
+      "Sid": "DeliveryClaimByKnownHash",
+      "Effect": "Allow",
+      "Action": "dynamodb:GetItem",
+      "Resource": "arn:aws:dynamodb:us-east-1:968053399627:table/peach-report-mail-state"
+    },
+    {
+      "Sid": "LogInspection",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogStreams",
+        "logs:FilterLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder:*",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer:*"
+      ]
+    },
+    {
+      "Sid": "ReadLogStreams",
+      "Effect": "Allow",
+      "Action": "logs:GetLogEvents",
+      "Resource": [
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder:log-stream:*",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer:log-stream:*"
+      ]
+    }
+  ]
+}

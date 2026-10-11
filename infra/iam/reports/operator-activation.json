@@ -1,0 +1,25 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InspectAndActivateOnlyWeeklySchedule",
+      "Effect": "Allow",
+      "Action": [
+        "scheduler:GetSchedule",
+        "scheduler:UpdateSchedule"
+      ],
+      "Resource": "arn:aws:scheduler:us-east-1:968053399627:schedule/peach-reports/peach-weekly-report"
+    },
+    {
+      "Sid": "PassExistingSchedulerRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::968053399627:role/peach-report-scheduler",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "scheduler.amazonaws.com"
+        }
+      }
+    }
+  ]
+}

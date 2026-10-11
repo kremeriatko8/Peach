@@ -183,6 +183,8 @@ def prepare(stack_name, function, auth, params_path, runner_path, check_snapshot
 
 if __name__ == "__main__":
     try:
+        if sys.argv[6] not in {"preparation", "ordinary", "schema", "release"}:
+            raise ValueError("Unknown release mode")
         with open(sys.argv[3]) as file:
             auth = json.load(file)
         prepare(
@@ -191,7 +193,7 @@ if __name__ == "__main__":
             auth,
             sys.argv[4],
             sys.argv[5],
-            check_snapshot=sys.argv[6] != "preparation",
+            check_snapshot=sys.argv[6] not in {"preparation", "ordinary"},
         )
     except ValueError as error:
         sys.exit(

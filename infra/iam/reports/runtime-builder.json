@@ -1,0 +1,98 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BuilderLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder:log-stream:*"
+    },
+    {
+      "Sid": "NewLambdaEni",
+      "Effect": "Allow",
+      "Action": "ec2:CreateNetworkInterface",
+      "Resource": [
+        "arn:aws:ec2:us-east-1:968053399627:network-interface/*",
+        "arn:aws:ec2:us-east-1:968053399627:security-group/sg-0545f0ff2d3d0ad76",
+        "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-0b155a6dfcdf112f6",
+        "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-0ce865e3d6a942f32",
+        "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-0d85830f27e1de8a8",
+        "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-05cb823b915b8c589",
+        "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-03563e6593c729e87"
+      ]
+    },
+    {
+      "Sid": "ExistingLambdaEnis",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DeleteNetworkInterface",
+        "ec2:AssignPrivateIpAddresses",
+        "ec2:UnassignPrivateIpAddresses"
+      ],
+      "Resource": "arn:aws:ec2:us-east-1:968053399627:network-interface/*",
+      "Condition": {
+        "ArnEquals": {
+          "ec2:Vpc": "arn:aws:ec2:us-east-1:968053399627:vpc/vpc-0def9c995c9c73f75",
+          "ec2:Subnet": [
+            "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-0b155a6dfcdf112f6",
+            "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-0ce865e3d6a942f32",
+            "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-0d85830f27e1de8a8",
+            "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-05cb823b915b8c589",
+            "arn:aws:ec2:us-east-1:968053399627:subnet/subnet-03563e6593c729e87"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "LambdaNetworkDiscovery",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeSubnets"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "PollOnlyWorkQueue",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+      ],
+      "Resource": "arn:aws:sqs:us-east-1:968053399627:peach-report-work"
+    },
+    {
+      "Sid": "PublishOnlyScopedCSV",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::peach-reports-968053399627-us-east-1/reports/__REPORT_SCOPE_ID__/*.csv"
+    },
+    {
+      "Sid": "FunctionCodeCannotManageNetwork",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:CreateNetworkInterface",
+        "ec2:DeleteNetworkInterface",
+        "ec2:AssignPrivateIpAddresses",
+        "ec2:UnassignPrivateIpAddresses",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeSubnets"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "lambda:SourceFunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder"
+        }
+      }
+    }
+  ]
+}

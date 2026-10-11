@@ -1,68 +1,126 @@
 name: Deploy backend
 
-# Deploy on every push to main or manual dispatch.
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-# One deploy at a time, and never cancel one halfway: an interrupted
-# CloudFormation update is worse than a queued one.
+permissions:
+  contents: read
+
+# Never cancel a running production update. Manual cleanup shares this group.
 concurrency:
   group: deploy-backend
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate backend release
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: peach
+          POSTGRES_PASSWORD: ci-disposable-only
+          POSTGRES_DB: peach_ci_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U peach -d peach_ci_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://peach:ci-disposable-only@127.0.0.1:5432/peach_ci_test
+      DATABASE_URL: postgresql+asyncpg://peach:ci-disposable-only@127.0.0.1:5432/peach_ci_test
+      APP_ENV: test
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install locked backend dependencies
+        working-directory: backend
+        run: |
+          uv python install 3.14
+          uv sync --frozen
+      - name: Backend lint, formatting and tests
+        working-directory: backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run pytest
+      - name: Deployment safety tests and migration compatibility
+        run: |
+          backend/.venv/bin/ruff check --isolated --select E4,E7,E9,F,I,UP,B scripts
+          backend/.venv/bin/ruff format --isolated --check scripts
+          backend/.venv/bin/python -m pytest scripts/tests -q
+          backend/.venv/bin/python scripts/schema-release.py
+          for script in scripts/*.sh; do bash -n "$script"; done
+      - name: Validate GitHub workflow syntax
+        run: |
+          validator_dir=$(mktemp -d)
+          trap 'rm -rf "$validator_dir"' EXIT
+          base_url=https://github.com/rhysd/actionlint/releases/download/v1.7.7
+          curl -fsSL "$base_url/actionlint_1.7.7_linux_amd64.tar.gz" -o "$validator_dir/actionlint_1.7.7_linux_amd64.tar.gz"
+          curl -fsSL "$base_url/actionlint_1.7.7_checksums.txt" -o "$validator_dir/checksums.txt"
+          (cd "$validator_dir" && grep ' actionlint_1.7.7_linux_amd64.tar.gz$' checksums.txt | sha256sum --check -)
+          tar -xzf "$validator_dir/actionlint_1.7.7_linux_amd64.tar.gz" -C "$validator_dir" actionlint
+          "$validator_dir/actionlint" -shellcheck= -pyflakes=
+      - name: CloudFormation lint
+        run: |
+          uv tool run --from cfn-lint==1.57.2 cfn-lint --regions us-east-1 --ignore-checks W1011 --template infra/backend.yaml
+          uv tool run --from cfn-lint==1.57.2 cfn-lint --regions us-east-1 --template infra/migrations.yaml infra/reports.yaml
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Validate ARM64 Lambda image without publishing
+        run: |
+          docker buildx build --platform linux/arm64 --target lambda \
+            --provenance=false --sbom=false --load --tag peach-backend:validation backend
+          docker run --rm --platform linux/arm64 \
+            --entrypoint python \
+            -e DATABASE_URL="$DATABASE_URL" -e APP_ENV=test \
+            peach-backend:validation -c \
+            'import app.lambda_handler, app.migration_handler, app.reporting.builder, app.reporting.mailer'
+
   deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: validate
     name: Lambda
     runs-on: ubuntu-latest
     permissions:
-      # Required to fetch the OIDC token that AWS trades for the role. The job
-      # holds no long-lived credentials.
       id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Assume the deploy role
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
           role-session-name: gha-deploy-backend-${{ github.run_id }}
-
-      # The function runs on arm64 and this runner is x86, so the image is
-      # built under emulation. Swapping to a `ubuntu-24.04-arm`
-      # runner makes it native, and these two steps unnecessary.
+          unset-current-credentials: true
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
-
-      - name: Deploy
+      - name: Deploy guarded existing backend
         run: make deploy-backend
         env:
           AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-          # There is no .env here. Everything else falls back to the script's
-          # defaults, and any parameter left empty keeps whatever the stack
-          # already has - so a deploy from CI will not undo CORS settings.
+          PEACH_EXPECTED_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          PEACH_APPROVED_MIGRATION_SHA256: ${{ vars.PEACH_APPROVED_MIGRATION_SHA256 }}
           PEACH_RELEASE_SNAPSHOT_ID: ${{ vars.PEACH_RELEASE_SNAPSHOT_ID }}
           PROJECT_NAME: ${{ vars.PROJECT_NAME }}
-
       - name: Summary
         if: always()
         run: |
-          API_URL=$(aws cloudformation describe-stacks \
-            --stack-name "${PROJECT_NAME:-peach}-backend" \
-            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
-            --output text 2>/dev/null || echo "unknown")
           {
-            echo "### Backend deploy"
+            echo "### Backend release"
             echo
-            echo "| | |"
-            echo "|---|---|"
-            echo "| commit | \`${GITHUB_SHA::12}\` |"
-            echo "| api | ${API_URL} |"
-            echo "| result | ${{ job.status }} |"
+            echo "Commit: $GITHUB_SHA"
+            echo "Result: ${{ job.status }}"
+            echo "Reporting infrastructure and frontend were not deployed."
           } >> "$GITHUB_STEP_SUMMARY"
-        env:
-          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-          PROJECT_NAME: ${{ vars.PROJECT_NAME }}

@@ -1,7 +1,9 @@
 import json
 import os
+import re
 import time
 from collections.abc import AsyncIterator
+from urllib.parse import urlsplit
 
 import jwt
 import pytest
@@ -18,12 +20,20 @@ def _test_database_url() -> str:
     "_test" suffix on the database name.
     """
     explicit = os.environ.get("TEST_DATABASE_URL")
-    if explicit:
-        return explicit
-
-    runtime = os.environ.get("DATABASE_URL", "postgresql+asyncpg://peach:peach@db:5432/peach")
-    base, _, database = runtime.rpartition("/")
-    return f"{base}/{database}_test"
+    if not explicit:
+        runtime = os.environ.get("DATABASE_URL", "postgresql+asyncpg://peach:peach@db:5432/peach")
+        base, _, database = runtime.rpartition("/")
+        explicit = f"{base}/{database}_test"
+    target = urlsplit(explicit)
+    if (
+        target.scheme != "postgresql+asyncpg"
+        or target.hostname not in {"localhost", "127.0.0.1", "::1", "db"}
+        or not re.fullmatch(r"[A-Za-z0-9_]+_test", target.path.lstrip("/"))
+        or target.query
+        or target.fragment
+    ):
+        raise RuntimeError("Tests require a local disposable PostgreSQL database ending in _test")
+    return explicit
 
 
 os.environ["APP_ENV"] = "test"

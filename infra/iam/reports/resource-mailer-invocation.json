@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OnlyExpectedS3Bucket",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceAccount": "968053399627"
+        },
+        "ArnLike": {
+          "AWS:SourceArn": "arn:aws:s3:::peach-reports-968053399627-us-east-1"
+        }
+      },
+      "Principal": {
+        "Service": "s3.amazonaws.com"
+      }
+    }
+  ]
+}

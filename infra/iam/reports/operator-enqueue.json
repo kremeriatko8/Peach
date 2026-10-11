@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ResolveQueueFromReportingStack",
+      "Effect": "Allow",
+      "Action": "cloudformation:DescribeStacks",
+      "Resource": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/*"
+    },
+    {
+      "Sid": "EnqueueOneReportRequest",
+      "Effect": "Allow",
+      "Action": "sqs:SendMessage",
+      "Resource": "arn:aws:sqs:us-east-1:968053399627:peach-report-work"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ExecuteOnlyReviewedBackendChangeSet",
+      "Effect": "Allow",
+      "Action": "cloudformation:ExecuteChangeSet",
+      "Resource": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-backend/*"
+    },
+    {
+      "Sid": "MigrationStackChangeSetLifecycle",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:GetTemplateSummary",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:GetTemplate"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-migrations/*"
+    },
+    {
+      "Sid": "ExistingReleaseFunctionUpdatesAndProviderReads",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:GetFunctionRecursionConfig",
+        "lambda:GetRuntimeManagementConfig",
+        "lambda:GetFunctionScalingConfig",
+        "lambda:GetFunctionConcurrency",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:ListTags",
+        "lambda:TagResource",
+        "lambda:UntagResource"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-backend",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-migrations"
+      ]
+    },
+    {
+      "Sid": "InvokeOnlyPrivateMigrationRunner",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:us-east-1:968053399627:function:peach-migrations"
+    },
+    {
+      "Sid": "PassOnlyExistingExecutionRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::968053399627:role/peach-backend-ExecutionRole-PWplj0iyaN28",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "InspectOnlyExistingExecutionRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRoleTags"
+      ],
+      "Resource": "arn:aws:iam::968053399627:role/peach-backend-ExecutionRole-PWplj0iyaN28"
+    },
+    {
+      "Sid": "ExistingMigrationLogGroupConfiguration",
+      "Effect": "Allow",
+      "Action": [
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:GetDataProtectionPolicy"
+      ],
+      "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-migrations:*"
+    },
+    {
+      "Sid": "ExistingMigrationLogGroupTags",
+      "Effect": "Allow",
+      "Action": [
+        "logs:TagResource",
+        "logs:UntagResource",
+        "logs:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-migrations"
+    },
+    {
+      "Sid": "RegionalLogProviderReads",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogGroups",
+        "logs:DescribeResourcePolicies",
+        "logs:DescribeIndexPolicies"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "ReadMigrationProof",
+      "Effect": "Allow",
+      "Action": "logs:FilterLogEvents",
+      "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-migrations:*"
+    },
+    {
+      "Sid": "ReadOnlyExistingImageForLambdaDeployment",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:GetRepositoryPolicy"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:968053399627:repository/peach-backend"
+    }
+  ]
+}

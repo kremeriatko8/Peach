@@ -1,0 +1,486 @@
+{
+  "source": "cfn-lint 1.57.2 bundled us-east-1 registry schemas",
+  "review_date": "2026-10-10",
+  "s3_bucket_read": [
+    "s3:GetAccelerateConfiguration",
+    "s3:GetLifecycleConfiguration",
+    "s3:GetBucketPublicAccessBlock",
+    "s3:GetAnalyticsConfiguration",
+    "s3:GetBucketCORS",
+    "s3:GetEncryptionConfiguration",
+    "s3:GetInventoryConfiguration",
+    "s3:GetBucketLogging",
+    "s3:GetMetricsConfiguration",
+    "s3:GetBucketNotification",
+    "s3:GetBucketVersioning",
+    "s3:GetReplicationConfiguration",
+    "s3:GetBucketWebsite",
+    "s3:GetBucketObjectLockConfiguration",
+    "s3:GetBucketTagging",
+    "s3:ListTagsForResource",
+    "s3:GetBucketAbac",
+    "s3:GetBucketOwnershipControls",
+    "s3:GetIntelligentTieringConfiguration",
+    "s3:GetBucketMetadataTableConfiguration",
+    "s3:ListBucket"
+  ],
+  "dynamodb_table_read": [
+    "dynamodb:DescribeTable",
+    "dynamodb:DescribeContinuousBackups",
+    "dynamodb:DescribeContributorInsights",
+    "dynamodb:DescribeKinesisStreamingDestination",
+    "dynamodb:ListTagsOfResource",
+    "dynamodb:GetResourcePolicy",
+    "dynamodb:DescribeTimeToLive"
+  ],
+  "endpoint_tagging": {
+    "cloudFormationSystemTags": true,
+    "permissions": [
+      "ec2:CreateTags",
+      "ec2:DeleteTags",
+      "ec2:DescribeVpcEndpoints"
+    ],
+    "tagOnCreate": true,
+    "tagProperty": "/properties/Tags",
+    "tagUpdatable": true,
+    "taggable": true
+  },
+  "mapping_tagging": {
+    "cloudFormationSystemTags": true,
+    "permissions": [
+      "lambda:ListTags",
+      "lambda:TagResource",
+      "lambda:UntagResource"
+    ],
+    "tagOnCreate": true,
+    "tagProperty": "/properties/Tags",
+    "tagUpdatable": true,
+    "taggable": true
+  },
+  "compute_authorization_review": {
+    "review_date": "2026-10-10",
+    "sources": [
+      "https://servicereference.us-east-1.amazonaws.com/v1/lambda/lambda.json",
+      "https://servicereference.us-east-1.amazonaws.com/v1/logs/logs.json",
+      "https://servicereference.us-east-1.amazonaws.com/v1/iam/iam.json",
+      "https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html"
+    ],
+    "lambda_actions": {
+      "CreateEventSourceMapping": {
+        "resources": [],
+        "conditions": [
+          "aws:RequestTag/${TagKey}",
+          "aws:TagKeys",
+          "lambda:FunctionArn"
+        ]
+      },
+      "DeleteEventSourceMapping": {
+        "resources": [
+          {
+            "Name": "eventSourceMapping"
+          }
+        ],
+        "conditions": [
+          "lambda:FunctionArn"
+        ]
+      },
+      "GetEventSourceMapping": {
+        "resources": [
+          {
+            "Name": "eventSourceMapping"
+          }
+        ],
+        "conditions": [
+          "lambda:FunctionArn"
+        ]
+      },
+      "ListTags": {
+        "resources": [
+          {
+            "Name": "capacityProvider"
+          },
+          {
+            "Name": "code signing config"
+          },
+          {
+            "Name": "eventSourceMapping"
+          },
+          {
+            "Name": "function"
+          },
+          {
+            "Name": "microvmImage"
+          },
+          {
+            "Name": "networkConnector"
+          },
+          {
+            "Name": "webFunction"
+          }
+        ],
+        "conditions": []
+      },
+      "TagResource": {
+        "resources": [
+          {
+            "Name": "capacityProvider"
+          },
+          {
+            "Name": "code signing config"
+          },
+          {
+            "Name": "eventSourceMapping"
+          },
+          {
+            "Name": "function"
+          },
+          {
+            "Name": "microvmImage"
+          },
+          {
+            "Name": "networkConnector"
+          },
+          {
+            "Name": "webFunction"
+          }
+        ],
+        "conditions": [
+          "aws:RequestTag/${TagKey}",
+          "aws:TagKeys"
+        ]
+      },
+      "UntagResource": {
+        "resources": [
+          {
+            "Name": "capacityProvider"
+          },
+          {
+            "Name": "code signing config"
+          },
+          {
+            "Name": "eventSourceMapping"
+          },
+          {
+            "Name": "function"
+          },
+          {
+            "Name": "microvmImage"
+          },
+          {
+            "Name": "networkConnector"
+          },
+          {
+            "Name": "webFunction"
+          }
+        ],
+        "conditions": [
+          "aws:TagKeys"
+        ]
+      },
+      "UpdateEventSourceMapping": {
+        "resources": [
+          {
+            "Name": "eventSourceMapping"
+          }
+        ],
+        "conditions": [
+          "lambda:FunctionArn"
+        ]
+      }
+    },
+    "mapping_resource": {
+      "Name": "eventSourceMapping",
+      "ARNFormats": [
+        "arn:${Partition}:lambda:${Region}:${Account}:event-source-mapping:${UUID}"
+      ],
+      "ConditionKeys": [
+        "aws:ResourceTag/${TagKey}"
+      ]
+    },
+    "iam_pass_role": {
+      "Name": "PassRole",
+      "ActionConditionKeys": [
+        "iam:AssociatedResourceArn",
+        "iam:PassedToService"
+      ],
+      "Annotations": {
+        "Properties": {
+          "IsList": false,
+          "IsPermissionManagement": false,
+          "IsTaggingOnly": false,
+          "IsWrite": true
+        }
+      },
+      "Resources": [
+        {
+          "Name": "role"
+        }
+      ],
+      "SupportedBy": {
+        "IAM Access Analyzer Policy Generation": false,
+        "IAM Action Last Accessed": false
+      }
+    },
+    "logs_actions": {
+      "CreateLogGroup": [
+        {
+          "Name": "log-group"
+        }
+      ],
+      "DeleteLogGroup": [
+        {
+          "Name": "log-group"
+        }
+      ],
+      "DeleteRetentionPolicy": [
+        {
+          "Name": "log-group"
+        }
+      ],
+      "GetDataProtectionPolicy": [
+        {
+          "Name": "log-group"
+        }
+      ],
+      "ListTagsForResource": [
+        {
+          "Name": "anomaly-detector"
+        },
+        {
+          "Name": "delivery"
+        },
+        {
+          "Name": "delivery-destination"
+        },
+        {
+          "Name": "delivery-source"
+        },
+        {
+          "Name": "destination"
+        },
+        {
+          "Name": "log-group"
+        },
+        {
+          "Name": "lookup-table"
+        }
+      ],
+      "PutRetentionPolicy": [
+        {
+          "Name": "log-group"
+        }
+      ],
+      "TagResource": [
+        {
+          "Name": "anomaly-detector"
+        },
+        {
+          "Name": "delivery"
+        },
+        {
+          "Name": "delivery-destination"
+        },
+        {
+          "Name": "delivery-source"
+        },
+        {
+          "Name": "destination"
+        },
+        {
+          "Name": "log-group"
+        },
+        {
+          "Name": "lookup-table"
+        },
+        {
+          "Name": "scheduled-query"
+        }
+      ],
+      "UntagResource": [
+        {
+          "Name": "anomaly-detector"
+        },
+        {
+          "Name": "delivery"
+        },
+        {
+          "Name": "delivery-destination"
+        },
+        {
+          "Name": "delivery-source"
+        },
+        {
+          "Name": "destination"
+        },
+        {
+          "Name": "log-group"
+        },
+        {
+          "Name": "lookup-table"
+        },
+        {
+          "Name": "scheduled-query"
+        }
+      ]
+    }
+  },
+  "network_authorization_review": {
+    "review_date": "2026-10-10",
+    "source": "https://servicereference.us-east-1.amazonaws.com/v1/ec2/ec2.json",
+    "actions": {
+      "CreateTags": {
+        "conditions": [
+          "ec2:CreateAction",
+          "ec2:Region"
+        ],
+        "resources": [
+          {
+            "Name": "route-table",
+            "ConditionKeys": [
+              "aws:RequestTag/${TagKey}",
+              "aws:ResourceTag/${TagKey}",
+              "aws:TagKeys",
+              "ec2:ResourceTag/${TagKey}",
+              "ec2:RouteTableID",
+              "ec2:Vpc"
+            ]
+          },
+          {
+            "Name": "vpc",
+            "ConditionKeys": [
+              "aws:RequestTag/${TagKey}",
+              "aws:ResourceTag/${TagKey}",
+              "aws:TagKeys",
+              "ec2:ResourceTag/${TagKey}",
+              "ec2:Tenancy",
+              "ec2:VpcID"
+            ]
+          },
+          {
+            "Name": "vpc-endpoint",
+            "ConditionKeys": [
+              "aws:RequestTag/${TagKey}",
+              "aws:ResourceTag/${TagKey}",
+              "aws:TagKeys",
+              "ec2:ResourceTag/${TagKey}"
+            ]
+          }
+        ]
+      },
+      "CreateVpcEndpoint": {
+        "conditions": [
+          "ec2:Region"
+        ],
+        "resources": [
+          {
+            "Name": "route-table",
+            "ConditionKeys": [
+              "aws:ResourceTag/${TagKey}",
+              "ec2:ResourceTag/${TagKey}",
+              "ec2:RouteTableID"
+            ]
+          },
+          {
+            "Name": "vpc",
+            "ConditionKeys": [
+              "aws:ResourceTag/${TagKey}",
+              "ec2:ResourceTag/${TagKey}",
+              "ec2:VpcID"
+            ]
+          },
+          {
+            "Name": "vpc-endpoint",
+            "ConditionKeys": [
+              "aws:RequestTag/${TagKey}",
+              "aws:TagKeys",
+              "ec2:VpceMultiRegion",
+              "ec2:VpcePrivateDnsPreference",
+              "ec2:VpcePrivateDnsSpecifiedDomains",
+              "ec2:VpceServiceName",
+              "ec2:VpceServiceOwner",
+              "ec2:VpceServiceRegion"
+            ]
+          }
+        ]
+      },
+      "DeleteTags": {
+        "conditions": [
+          "aws:TagKeys",
+          "ec2:Region"
+        ],
+        "resources": [
+          {
+            "Name": "route-table",
+            "ConditionKeys": [
+              "aws:RequestTag/${TagKey}",
+              "aws:ResourceTag/${TagKey}",
+              "aws:TagKeys",
+              "ec2:ResourceTag/${TagKey}"
+            ]
+          },
+          {
+            "Name": "vpc",
+            "ConditionKeys": [
+              "aws:RequestTag/${TagKey}",
+              "aws:ResourceTag/${TagKey}",
+              "aws:TagKeys",
+              "ec2:ResourceTag/${TagKey}"
+            ]
+          },
+          {
+            "Name": "vpc-endpoint",
+            "ConditionKeys": [
+              "aws:RequestTag/${TagKey}",
+              "aws:ResourceTag/${TagKey}",
+              "aws:TagKeys",
+              "ec2:ResourceTag/${TagKey}"
+            ]
+          }
+        ]
+      },
+      "DeleteVpcEndpoints": {
+        "conditions": [
+          "ec2:Region"
+        ],
+        "resources": [
+          {
+            "Name": "vpc-endpoint",
+            "ConditionKeys": [
+              "aws:ResourceTag/${TagKey}",
+              "ec2:ResourceTag/${TagKey}",
+              "ec2:VpceMultiRegion",
+              "ec2:VpceServiceName",
+              "ec2:VpceServiceRegion"
+            ]
+          }
+        ]
+      },
+      "ModifyVpcEndpoint": {
+        "conditions": [
+          "ec2:Region"
+        ],
+        "resources": [
+          {
+            "Name": "route-table",
+            "ConditionKeys": [
+              "aws:ResourceTag/${TagKey}",
+              "ec2:ResourceTag/${TagKey}",
+              "ec2:RouteTableID"
+            ]
+          },
+          {
+            "Name": "vpc-endpoint",
+            "ConditionKeys": [
+              "aws:ResourceTag/${TagKey}",
+              "ec2:Attribute",
+              "ec2:Attribute/${AttributeName}",
+              "ec2:ResourceTag/${TagKey}",
+              "ec2:VpceMultiRegion",
+              "ec2:VpceServiceRegion"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -64,8 +64,10 @@ function ConnectedSession({ children }: { children: React.ReactNode }) {
     return () => {
       lifetime.retire(() => {
         if (sub) {
-          void queryClient.cancelQueries({ queryKey: ["items", sub] });
-          queryClient.removeQueries({ queryKey: ["items", sub] });
+          for (const resource of ["items", "meetings"]) {
+            void queryClient.cancelQueries({ queryKey: [resource, sub] });
+            queryClient.removeQueries({ queryKey: [resource, sub] });
+          }
         }
       });
     };
@@ -120,7 +122,13 @@ export function ItemSessionProvider({
   return ready ? <ConnectedSession>{children}</ConnectedSession> : children;
 }
 
-export function ItemAccessGate({ children }: { children: React.ReactNode }) {
+export function ItemAccessGate({
+  children,
+  resource = "board",
+}: {
+  children: React.ReactNode;
+  resource?: "board" | "meetings";
+}) {
   const state = useContext(ItemAccessStateContext);
   const session = useContext(ItemSessionContext);
   const signIn = useContext(Reauthenticate);
@@ -138,7 +146,7 @@ export function ItemAccessGate({ children }: { children: React.ReactNode }) {
       <p className="text-sm text-muted-foreground">
         {state === "expired"
           ? "Your session needs to be renewed. Sign in again to continue."
-          : "Sign in to view your board."}
+          : `Sign in to view your ${resource}.`}
       </p>
       {state === "expired" && signIn ? (
         <Button onClick={() => void signIn().catch(() => setFailed(true))}>

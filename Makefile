@@ -90,3 +90,23 @@ auth-config: ## Read auth outputs into frontend/.env.local for localhost (no dep
 
 backend-auth-config: ## Download public auth outputs/JWKS for local backend verification
 	./scripts/backend-auth-config.sh
+
+.PHONY: report-local report-owners report-owner
+report-local: ## Generate a CSV from verified disposable local DB: make report-local WEEK=2026-W40
+	python3 scripts/report-local.py --week "$(WEEK)"
+
+report-owners: ## List anonymous owner numbers from the verified disposable local DB
+	python3 scripts/report-local.py --owners
+
+report-owner: ## Configure a listed local owner: make report-owner OWNER=1
+	python3 scripts/report-local.py --select-owner "$(OWNER)"
+
+.PHONY: report-now reports-prepare reports-validate
+report-now: ## MUTATES AWS: enqueue an on-demand report after authorized deployment
+	python3 scripts/report-now.py --week "$(WEEK)"
+
+reports-prepare: ## Offline private artifacts only; DOES NOT DEPLOY
+	python3 scripts/prepare-reports.py --parameters "$(PARAMETERS_FILE)"
+
+reports-validate: ## Validate reporting CloudFormation locally; no AWS calls
+	cfn-lint --regions us-east-1 --template infra/reports.yaml

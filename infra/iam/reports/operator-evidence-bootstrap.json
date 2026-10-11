@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LookupOwnerInOnlyPeachPool",
+      "Effect": "Allow",
+      "Action": "cognito-idp:ListUsers",
+      "Resource": "arn:aws:cognito-idp:us-east-1:968053399627:userpool/us-east-1_bs7cWxhJp",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "ReadOnlyMigrationStackMetadata",
+      "Effect": "Allow",
+      "Action": "cloudformation:DescribeStacks",
+      "Resource": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-migrations/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "ReadOnlyMigrationRunnerEvidence",
+      "Effect": "Allow",
+      "Action": "logs:FilterLogEvents",
+      "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-migrations:*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}

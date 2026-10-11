@@ -28,3 +28,6 @@ out/
 
 # --- docker ---
 pgdata/
+
+# Local weekly productivity report artifacts
+reports-local/

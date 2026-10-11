@@ -6,7 +6,7 @@ import {
   ItemSessionContext,
   ItemAccessStateContext,
 } from "@/components/item-session";
-import type { Item } from "@/lib/api";
+import type { Item, Meeting } from "@/lib/api";
 
 /** Render with a fresh QueryClient so tests never share cache state. */
 export function renderWithQuery(ui: ReactElement, options?: RenderOptions) {
@@ -44,6 +44,20 @@ export function makeItem(overrides: Partial<Item> = {}): Item {
     status: "todo",
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+export function makeMeeting(overrides: Partial<Meeting> = {}): Meeting {
+  return {
+    id: "22222222-2222-4222-8222-222222222222",
+    title: "Design review",
+    starts_at: "2026-10-09T07:30:00Z",
+    duration_minutes: 45,
+    participant_count: 3,
+    notes: "Review the agenda",
+    created_at: "2026-10-01T00:00:00Z",
+    updated_at: "2026-10-01T00:00:00Z",
     ...overrides,
   };
 }

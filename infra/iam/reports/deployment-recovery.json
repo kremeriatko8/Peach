@@ -1,0 +1,50 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CreateS3EndpointWithoutImplicitRequestTags",
+      "Effect": "Allow",
+      "Action": "ec2:CreateVpcEndpoint",
+      "Resource": "arn:aws:ec2:us-east-1:968053399627:vpc-endpoint/*",
+      "Condition": {
+        "StringEquals": {
+          "ec2:VpceServiceName": "com.amazonaws.us-east-1.s3"
+        }
+      }
+    },
+    {
+      "Sid": "TagEndpointOnCreation",
+      "Effect": "Allow",
+      "Action": "ec2:CreateTags",
+      "Resource": "arn:aws:ec2:us-east-1:968053399627:vpc-endpoint/*",
+      "Condition": {
+        "StringEquals": {
+          "ec2:CreateAction": "CreateVpcEndpoint"
+        }
+      }
+    },
+    {
+      "Sid": "TagTwoLogGroupsDuringCreation",
+      "Effect": "Allow",
+      "Action": "logs:TagResource",
+      "Resource": [
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder:*",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer:*"
+      ]
+    },
+    {
+      "Sid": "DeleteSchedulesOnlyInReportingGroup",
+      "Effect": "Allow",
+      "Action": "scheduler:DeleteSchedule",
+      "Resource": "arn:aws:scheduler:us-east-1:968053399627:schedule/peach-reports/*"
+    },
+    {
+      "Sid": "DeleteOnlyFailedReportingStack",
+      "Effect": "Allow",
+      "Action": "cloudformation:DeleteStack",
+      "Resource": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/*"
+    }
+  ]
+}

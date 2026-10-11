@@ -35,6 +35,12 @@ Parameters:
     Type: String
     Description: Fully qualified image, e.g. <account>.dkr.ecr.<region>.amazonaws.com/peach-backend:abc1234
 
+  ReleaseSchemaSha256:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^[a-f0-9]{64}$"
+    Description: Recorded only after guarded migration verification; never seed manually.
+
   Architecture:
     Type: String
     Default: arm64
@@ -328,6 +334,10 @@ Resources:
       InvokedViaFunctionUrl: true
 
 Outputs:
+  ReleaseSchemaSha256:
+    Description: Successful release migration manifest; not a live database drift check.
+    Value: !Ref ReleaseSchemaSha256
+
   ApiUrl:
     Description: Base URL of the backend, with no trailing slash.
     Value: !Sub

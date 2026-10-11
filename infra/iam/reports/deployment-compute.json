@@ -1,0 +1,223 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TwoReportingFunctions",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:DeleteFunction",
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:PutFunctionConcurrency",
+        "lambda:DeleteFunctionConcurrency",
+        "lambda:GetFunctionConcurrency",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:GetFunctionRecursionConfig",
+        "lambda:GetRuntimeManagementConfig",
+        "lambda:GetFunctionScalingConfig",
+        "lambda:TagResource",
+        "lambda:UntagResource",
+        "lambda:ListTags"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer"
+      ]
+    },
+    {
+      "Sid": "MailerAsyncFailureHandling",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:PutFunctionEventInvokeConfig",
+        "lambda:UpdateFunctionEventInvokeConfig",
+        "lambda:DeleteFunctionEventInvokeConfig",
+        "lambda:GetFunctionEventInvokeConfig"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer:$LATEST"
+      ]
+    },
+    {
+      "Sid": "OnlyS3MayGainMailerInvocation",
+      "Effect": "Allow",
+      "Action": "lambda:AddPermission",
+      "Resource": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer",
+      "Condition": {
+        "StringEquals": {
+          "lambda:Principal": "s3.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "InspectRemoveMailerResourcePermission",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetPolicy",
+        "lambda:RemovePermission"
+      ],
+      "Resource": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer"
+    },
+    {
+      "Sid": "CreateOnlyBuilderMapping",
+      "Effect": "Allow",
+      "Action": "lambda:CreateEventSourceMapping",
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "lambda:FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder"
+        }
+      }
+    },
+    {
+      "Sid": "ManageOnlyBuilderMapping",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetEventSourceMapping",
+        "lambda:UpdateEventSourceMapping",
+        "lambda:DeleteEventSourceMapping"
+      ],
+      "Resource": "arn:aws:lambda:us-east-1:968053399627:event-source-mapping:*",
+      "Condition": {
+        "ArnEquals": {
+          "lambda:FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder"
+        }
+      }
+    },
+    {
+      "Sid": "MappingTagsOnCreation",
+      "Effect": "Allow",
+      "Action": "lambda:TagResource",
+      "Resource": "arn:aws:lambda:us-east-1:968053399627:event-source-mapping:*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/aws:cloudformation:stack-name": "peach-reports"
+        }
+      }
+    },
+    {
+      "Sid": "OwnedMappingTags",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:TagResource",
+        "lambda:UntagResource",
+        "lambda:ListTags"
+      ],
+      "Resource": "arn:aws:lambda:us-east-1:968053399627:event-source-mapping:*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/aws:cloudformation:stack-name": "peach-reports"
+        },
+        "StringLike": {
+          "aws:ResourceTag/aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/*"
+        }
+      }
+    },
+    {
+      "Sid": "ThreeInlineRuntimeRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRoleTags",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::968053399627:role/peach-report-builder",
+        "arn:aws:iam::968053399627:role/peach-report-mailer",
+        "arn:aws:iam::968053399627:role/peach-report-scheduler"
+      ]
+    },
+    {
+      "Sid": "PassOnlyLambdaRoles",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": [
+        "arn:aws:iam::968053399627:role/peach-report-builder",
+        "arn:aws:iam::968053399627:role/peach-report-mailer"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "PassOnlySchedulerRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::968053399627:role/peach-report-scheduler",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "scheduler.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ExistingReviewedImageRead",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories",
+        "ecr:GetRepositoryPolicy"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:968053399627:repository/peach-backend"
+    },
+    {
+      "Sid": "TwoLogGroups",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:GetDataProtectionPolicy"
+      ],
+      "Resource": [
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder:*",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer:*"
+      ]
+    },
+    {
+      "Sid": "LogGroupTags",
+      "Effect": "Allow",
+      "Action": [
+        "logs:TagResource",
+        "logs:UntagResource",
+        "logs:ListTagsForResource"
+      ],
+      "Resource": [
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer"
+      ]
+    },
+    {
+      "Sid": "RegionalProviderLogDiscovery",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogGroups",
+        "logs:DescribeResourcePolicies",
+        "logs:DescribeIndexPolicies"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}

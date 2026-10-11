@@ -49,3 +49,59 @@ describe("api", () => {
     ).rejects.toBeInstanceOf(ApiError);
   });
 });
+
+describe("meeting API", () => {
+  it("sends only the access token for CRUD and preserves request bodies", async () => {
+    const meeting = {
+      id: "22222222-2222-4222-8222-222222222222",
+      title: "Sync",
+      starts_at: "2026-10-09T07:00:00Z",
+      duration_minutes: 30,
+      participant_count: 1,
+      notes: null,
+      created_at: "2026-10-09T00:00:00Z",
+      updated_at: "2026-10-09T00:00:00Z",
+    };
+    const spy = mockFetch({ meetings: [meeting], total: 1 });
+    const auth = {
+      accessToken: "access-token",
+      signal: new AbortController().signal,
+    };
+    await api.listMeetings({ limit: 20, offset: 40 }, auth);
+    expect(spy.mock.calls[0][0]).toContain(
+      "/api/v1/meetings?limit=20&offset=40",
+    );
+    spy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => meeting,
+    } as Response);
+    await api.getMeeting(meeting.id, auth);
+    const payload = {
+      title: "Sync",
+      starts_at: meeting.starts_at,
+      duration_minutes: 30,
+      participant_count: 1,
+      notes: null,
+    };
+    await api.createMeeting(payload, auth);
+    await api.updateMeeting(meeting.id, { notes: null }, auth);
+    spy.mockResolvedValue({ ok: true, status: 204 } as Response);
+    await expect(api.deleteMeeting(meeting.id, auth)).resolves.toBeUndefined();
+    for (const [, init] of spy.mock.calls) {
+      expect(init?.headers).toMatchObject({
+        Authorization: "Bearer access-token",
+      });
+      expect(init?.signal).toBe(auth.signal);
+    }
+    expect(JSON.parse(spy.mock.calls[2][1]?.body as string)).toEqual(payload);
+    expect(JSON.parse(spy.mock.calls[3][1]?.body as string)).toEqual({
+      notes: null,
+    });
+  });
+  it("rejects missing tokens before making a request", async () => {
+    const spy = mockFetch({ meetings: [], total: 0 });
+    expect(() => api.listMeetings({}, { accessToken: "" })).toThrow(ApiError);
+    expect(spy).not.toHaveBeenCalled();
+  });
+});

@@ -1,0 +1,55 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CreateNamedReviewedReportingChangeSet",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateChangeSet"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/*",
+      "Condition": {
+        "StringLike": {
+          "cloudformation:ChangeSetName": "peach-reports-*"
+        }
+      }
+    },
+    {
+      "Sid": "ReviewAndExecuteOnlyReportingChangeSets",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DeleteChangeSet"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/*"
+    },
+    {
+      "Sid": "ReportingStackEvidence",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:ListStackResources",
+        "cloudformation:GetTemplate",
+        "cloudformation:GetStackPolicy"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/*"
+    },
+    {
+      "Sid": "OfflineTemplateEquivalentValidation",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:ValidateTemplate",
+        "cloudformation:GetTemplateSummary"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}

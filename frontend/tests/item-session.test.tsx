@@ -6,7 +6,9 @@ import { ItemSessionProvider, ItemAccessGate } from "@/components/item-session";
 import { useItems } from "@/lib/items";
 import { api, ApiError, type ItemList } from "@/lib/api";
 import { ItemBoard } from "@/components/item-board";
-import { makeItem } from "./utils";
+import { makeItem, makeMeeting } from "./utils";
+import { Meetings } from "@/components/meetings";
+import type { MeetingList } from "@/lib/api";
 
 const state = vi.hoisted(() => ({
   ready: true,
@@ -320,5 +322,153 @@ describe("protected item sessions", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await screen.findByRole("button", { name: "Edit B title" });
     expect(screen.queryByText("A title")).not.toBeInTheDocument();
+  });
+});
+
+describe("protected meeting sessions", () => {
+  it.each(["loading", "signed-out", "unconfigured"])(
+    "does not fetch meetings while %s",
+    (condition) => {
+      state.auth.isLoading = condition === "loading";
+      state.auth.isAuthenticated = condition !== "signed-out";
+      state.ready = condition !== "unconfigured";
+      const list = vi.spyOn(api, "listMeetings");
+      mount(<Meetings />);
+      expect(list).not.toHaveBeenCalled();
+      expect(
+        screen.queryByRole("button", { name: "New meeting" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+  it("clears meetings and tasks on account switch/logout and closes private dialogs", async () => {
+    const list = vi
+      .spyOn(api, "listMeetings")
+      .mockImplementation(async (_params, auth) => ({
+        meetings: [
+          makeMeeting({
+            title:
+              auth.accessToken === "access-a"
+                ? "A private meeting"
+                : "B private meeting",
+          }),
+        ],
+        total: 1,
+      }));
+    const view = mount(<Meetings />);
+    view.client.setQueryData(["items", "user-a"], {
+      items: [makeItem()],
+      total: 1,
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit A private meeting" }),
+    );
+    expect(screen.getByLabelText("Title")).toHaveValue("A private meeting");
+    const signal = list.mock.calls[0][1].signal;
+    state.auth.user = {
+      ...state.auth.user,
+      profile: { sub: "user-b" },
+      access_token: "access-b",
+    };
+    view.refresh();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("A private meeting")).not.toBeInTheDocument();
+    await screen.findByText("B private meeting");
+    expect(signal?.aborted).toBe(true);
+    expect(
+      view.client.getQueriesData({ queryKey: ["meetings", "user-a"] }),
+    ).toEqual([]);
+    expect(view.client.getQueryData(["items", "user-a"])).toBeUndefined();
+    expect(view.client.getQueryData(["meetings", "user-b", 0])).toBeDefined();
+    state.auth.isAuthenticated = false;
+    view.refresh();
+    await waitFor(() =>
+      expect(
+        view.client.getQueriesData({ queryKey: ["meetings", "user-b"] }),
+      ).toEqual([]),
+    );
+    expect(screen.queryByText("B private meeting")).not.toBeInTheDocument();
+  });
+  it("discards late list results from the previous account", async () => {
+    let finish!: (result: MeetingList) => void;
+    const list = vi
+      .spyOn(api, "listMeetings")
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue({
+        meetings: [makeMeeting({ title: "B meeting" })],
+        total: 1,
+      });
+    const view = mount(<Meetings />);
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+    state.auth.user = {
+      ...state.auth.user,
+      profile: { sub: "user-b" },
+      access_token: "access-b",
+    };
+    view.refresh();
+    finish({ meetings: [makeMeeting({ title: "A secret" })], total: 1 });
+    await screen.findByText("B meeting");
+    expect(screen.queryByText("A secret")).not.toBeInTheDocument();
+    expect(
+      view.client.getQueriesData({ queryKey: ["meetings", "user-a"] }),
+    ).toEqual([]);
+  });
+  it("ignores a previous account's late save and cannot recreate its cache", async () => {
+    vi.spyOn(api, "listMeetings").mockImplementation(async (_params, auth) => ({
+      meetings: [
+        makeMeeting({
+          title: auth.accessToken === "access-a" ? "A meeting" : "B meeting",
+        }),
+      ],
+      total: 1,
+    }));
+    let finish!: (meeting: ReturnType<typeof makeMeeting>) => void;
+    const update = vi.spyOn(api, "updateMeeting").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const view = mount(<Meetings />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit A meeting" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    state.auth.user = {
+      ...state.auth.user,
+      profile: { sub: "user-b" },
+      access_token: "access-b",
+    };
+    view.refresh();
+    await screen.findByText("B meeting");
+    finish(makeMeeting({ title: "A saved" }));
+    await waitFor(() => expect(view.client.isMutating()).toBe(0));
+    expect(
+      view.client.getQueriesData({ queryKey: ["meetings", "user-a"] }),
+    ).toEqual([]);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("A saved")).not.toBeInTheDocument();
+  });
+  it("stops on 401 without retrying or changing authentication", async () => {
+    const list = vi
+      .spyOn(api, "listMeetings")
+      .mockRejectedValue(new ApiError(401, "Expired"));
+    mount(<Meetings />);
+    await screen.findByRole("button", { name: "Sign in again" });
+    expect(list).toHaveBeenCalledTimes(1);
+    expect(state.auth.signinRedirect).not.toHaveBeenCalled();
+  });
+  it("works under StrictMode effect replay", async () => {
+    vi.spyOn(api, "listMeetings").mockResolvedValue({
+      meetings: [makeMeeting()],
+      total: 1,
+    });
+    mount(<Meetings />, true);
+    expect(await screen.findByText("Design review")).toBeInTheDocument();
   });
 });
