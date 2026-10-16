@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Optional account-wide USD 5 monthly cost alert. Does not stop spending.
+Parameters:
+  NotificationEmail:
+    Type: String
+    AllowedPattern: '^[^ @]+@[^ @]+\.[^ @]+$'
+  BudgetName:
+    Type: String
+    Default: peach-monthly-cost-alert
+Resources:
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Ref BudgetName
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: {Amount: 5, Unit: USD}
+        CostTypes:
+          UseBlended: false
+          IncludeCredit: false
+          IncludeRefund: false
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            ThresholdType: ABSOLUTE_VALUE
+            Threshold: 5
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref NotificationEmail

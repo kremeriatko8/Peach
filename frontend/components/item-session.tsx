@@ -64,7 +64,7 @@ function ConnectedSession({ children }: { children: React.ReactNode }) {
     return () => {
       lifetime.retire(() => {
         if (sub) {
-          for (const resource of ["items", "meetings"]) {
+          for (const resource of ["items", "meetings", "agendas"]) {
             void queryClient.cancelQueries({ queryKey: [resource, sub] });
             queryClient.removeQueries({ queryKey: [resource, sub] });
           }

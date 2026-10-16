@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     cognito_client_id: str = ""
     cognito_jwks_json: str = ""
 
+    parser_model: str = "anthropic.claude-opus-5-5"
+    parser_max_tokens: int = Field(default=2048, ge=128, le=4096)
+    parser_enabled: bool = False
+    parser_requests_per_minute: int = Field(default=3, ge=1, le=10)
+    parser_input_usd_per_million: float | None = Field(default=None, gt=0)
+    parser_output_usd_per_million: float | None = Field(default=None, gt=0)
+
     database_url: str = "postgresql+asyncpg://peach:peach@db:5432/peach"
     # Off on Lambda: a warm but idle execution environment would otherwise hold
     # pooled connections open, and Aurora Serverless only pauses at zero.

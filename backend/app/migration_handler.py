@@ -15,9 +15,10 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
+from app.models.agenda import Agenda
 from app.models.meeting import Meeting
 
-EXPECTED_REVISION = "0004"
+EXPECTED_REVISION = "0005"
 CONNECTION_BUDGET_SECONDS = 180
 CONNECTION_RETRY_DELAY_SECONDS = 10
 
@@ -88,6 +89,61 @@ def _meetings_schema_valid(connection: Connection) -> bool:
     )
 
 
+def _agendas_schema_valid(connection):
+    inspector = inspect(connection)
+    if not inspector.has_table("agendas"):
+        return False
+    columns = {c["name"]: c for c in inspector.get_columns("agendas")}
+    if set(columns) != set(Agenda.__table__.columns.keys()):
+        return False
+    for expected in Agenda.__table__.columns:
+        actual = columns[expected.name]
+        if (
+            actual["nullable"] != expected.nullable
+            or actual["type"]._type_affinity != expected.type._type_affinity
+            or getattr(actual["type"], "length", None) != getattr(expected.type, "length", None)
+            or getattr(actual["type"], "timezone", None) != getattr(expected.type, "timezone", None)
+        ):
+            return False
+    checks = {
+        c["name"]: _check_sql(c["sqltext"]) for c in inspector.get_check_constraints("agendas")
+    }
+    expected_checks = {
+        c.name: _check_sql(str(c.sqltext))
+        for c in Agenda.__table__.constraints
+        if hasattr(c, "sqltext")
+    }
+    return (
+        checks == expected_checks
+        and inspector.get_pk_constraint("agendas")["constrained_columns"] == ["id"]
+        and all(
+            _check_sql(columns[n].get("default") or "") == value
+            for n, value in (
+                ("id", "gen_random_uuid"),
+                ("created_at", "now"),
+                ("updated_at", "now"),
+            )
+        )
+        and any(
+            c["column_names"] == ["meeting_id"] for c in inspector.get_unique_constraints("agendas")
+        )
+        and any(
+            c["constrained_columns"] == ["meeting_id"]
+            and c["referred_table"] == "meetings"
+            and c["referred_columns"] == ["id"]
+            and c.get("options", {}).get("ondelete") == "CASCADE"
+            for c in inspector.get_foreign_keys("agendas")
+        )
+    )
+
+
+def _agenda_rows(connection):
+    return {
+        str(row["id"]): dict(row)
+        for row in connection.execute(text("SELECT * FROM agendas")).mappings()
+    }
+
+
 def migrate(connection: Connection, config: Config) -> dict[str, Any]:
     # Hold the legacy row set stable throughout the transactional migration.
     connection.execute(text("LOCK TABLE items IN SHARE ROW EXCLUSIVE MODE"))
@@ -102,6 +158,10 @@ def migrate(connection: Connection, config: Config) -> dict[str, Any]:
             str(row["id"]): dict(row)
             for row in connection.execute(text("SELECT * FROM meetings")).mappings()
         }
+    agendas_before = {}
+    if inspect(connection).has_table("agendas"):
+        connection.execute(text("LOCK TABLE agendas IN SHARE ROW EXCLUSIVE MODE"))
+        agendas_before = _agenda_rows(connection)
     config.attributes["connection"] = connection
     command.upgrade(config, EXPECTED_REVISION)
     revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
@@ -130,8 +190,12 @@ def migrate(connection: Connection, config: Config) -> dict[str, Any]:
         if meetings_ok
         else None
     )
+    agendas_ok = _agendas_schema_valid(connection)
+    agendas_after = _agenda_rows(connection) if agendas_ok else None
     if (
-        revision != [EXPECTED_REVISION]
+        not agendas_ok
+        or agendas_before != agendas_after
+        or revision != [EXPECTED_REVISION]
         or "owner_id" not in columns
         or not index_ok
         or not preserved
@@ -147,6 +211,10 @@ def migrate(connection: Connection, config: Config) -> dict[str, Any]:
             "ownership_index": True,
             "rows_preserved": True,
             "ownership_preserved": True,
+            "agendas_schema": True,
+            "agenda_rows_preserved": True,
+            "agendas_before": len(agendas_before),
+            "agendas_after": len(agendas_after),
             "meetings_schema": True,
             "meeting_rows_preserved": True,
             "meetings_before": len(meetings_before),

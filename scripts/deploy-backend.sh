@@ -254,11 +254,15 @@ verification = result.get("verification", {})
 if (result.get("status") != "ok" or result.get("migrated_to") != expected_revision
     or any(verification.get(key) is not True for key in (
         "owner_column", "ownership_index", "rows_preserved", "ownership_preserved",
-        "meetings_schema", "meeting_rows_preserved"))
+        "meetings_schema", "meeting_rows_preserved", "agendas_schema", "agenda_rows_preserved"))
     or type(verification.get("rows_before")) is not int
     or type(verification.get("rows_after")) is not int
     or verification["rows_before"] < 0
     or verification["rows_before"] != verification.get("rows_after")
+    or type(verification.get("agendas_before")) is not int
+    or type(verification.get("agendas_after")) is not int
+    or verification["agendas_before"] < 0
+    or verification["agendas_before"] != verification.get("agendas_after")
     or type(verification.get("meetings_before")) is not int
     or type(verification.get("meetings_after")) is not int
     or verification["meetings_before"] < 0

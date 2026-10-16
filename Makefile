@@ -110,3 +110,18 @@ reports-prepare: ## Offline private artifacts only; DOES NOT DEPLOY
 
 reports-validate: ## Validate reporting CloudFormation locally; no AWS calls
 	cfn-lint --regions us-east-1 --template infra/reports.yaml
+
+# TEXT is exported directly by make, never interpolated into shell source.
+export TEXT
+.PHONY: llm-hello parse ai-validate ai-prepare-deploy
+llm-hello: ## PAID AWS CALL: only run after approval
+	cd backend && uv run python -m app.ai.cli hello
+
+parse: ## PAID AWS CALL: make parse TEXT="..." (after approval)
+	cd backend && uv run python -m app.ai.cli parse
+
+ai-validate: ## Offline validation only
+	cfn-lint --regions us-east-1 --template infra/ai.yml infra/budget.yml
+
+ai-prepare-deploy: ## AWS MUTATION: create disabled AI change set after approval
+	./scripts/deploy-ai.sh

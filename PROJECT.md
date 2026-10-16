@@ -267,3 +267,12 @@ legacy cleanup occurs. Frontend deployment stays manual. Reporting first deploym
 requires a reviewed change set and authorization; future image-only CI updates are
 documented but not implemented. Routine rollback preserves Meetings and revision
 `0004`; recovery never drops/recreates the existing Aurora cluster.
+
+## Agenda parsing lab — local implementation
+
+New owner-scoped GET/PUT meeting agenda API and additive migration 0005 store
+reviewed items/actions/language plus nullable original suggestion metadata.
+Parser is a separate non-VPC Lambda with Cognito JWT checks and no database access.
+The manual editor remains usable without a parser URL. See docs/agenda-ai.md for
+release gates and docs/architecture.md for the C4 container diagram. AWS deployment,
+paid tests, budget creation and submission evidence remain separate approvals.

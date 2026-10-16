@@ -340,7 +340,7 @@ describe("protected meeting sessions", () => {
       ).not.toBeInTheDocument();
     },
   );
-  it("clears meetings and tasks on account switch/logout and closes private dialogs", async () => {
+  it("clears meetings, agendas and tasks on account switch/logout and closes private dialogs", async () => {
     const list = vi
       .spyOn(api, "listMeetings")
       .mockImplementation(async (_params, auth) => ({
@@ -355,6 +355,12 @@ describe("protected meeting sessions", () => {
         total: 1,
       }));
     const view = mount(<Meetings />);
+    view.client.setQueryData(["agendas", "user-a", "meeting-a"], {
+      private: "A agenda",
+    });
+    view.client.setQueryData(["agendas", "user-b", "meeting-b"], {
+      private: "B agenda",
+    });
     view.client.setQueryData(["items", "user-a"], {
       items: [makeItem()],
       total: 1,
@@ -379,6 +385,12 @@ describe("protected meeting sessions", () => {
     ).toEqual([]);
     expect(view.client.getQueryData(["items", "user-a"])).toBeUndefined();
     expect(view.client.getQueryData(["meetings", "user-b", 0])).toBeDefined();
+    expect(
+      view.client.getQueryData(["agendas", "user-a", "meeting-a"]),
+    ).toBeUndefined();
+    expect(
+      view.client.getQueryData(["agendas", "user-b", "meeting-b"]),
+    ).toBeDefined();
     state.auth.isAuthenticated = false;
     view.refresh();
     await waitFor(() =>
@@ -387,6 +399,9 @@ describe("protected meeting sessions", () => {
       ).toEqual([]),
     );
     expect(screen.queryByText("B private meeting")).not.toBeInTheDocument();
+    expect(
+      view.client.getQueryData(["agendas", "user-b", "meeting-b"]),
+    ).toBeUndefined();
   });
   it("discards late list results from the previous account", async () => {
     let finish!: (result: MeetingList) => void;

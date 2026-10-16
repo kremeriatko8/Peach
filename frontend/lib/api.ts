@@ -138,6 +138,7 @@ function requireToken(auth: ItemAuth): ItemAuth {
 }
 
 export const api = {
+  request,
   listMeetings: (
     params: { limit?: number; offset?: number },
     auth: ItemAuth,

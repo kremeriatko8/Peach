@@ -103,7 +103,7 @@ elif args[:2]==['cloudformation','describe-change-set']:
 elif args[:2]==['lambda','get-function-configuration']:
     print(json.dumps({'Role':'' if scenario=='missing-role' else 'test-existing-role','VpcConfig':{'VpcId':'vpc-test','SubnetIds':['subnet-a','subnet-b'],'SecurityGroupIds':['sg-existing']},'Environment':{'Variables':{'DATABASE_URL':'postgresql+asyncpg://peach:@db/peach' if scenario=='empty-password' else 'postgresql+asyncpg://peach:synthetic@db/peach'}}}))
 elif args[:2]==['lambda','invoke']:
-    Path(args[-1]).write_text(json.dumps({'status':'failed' if scenario=='bad-result' else 'ok','migrated_to':'0003' if scenario=='wrong-head' else '0004','verification':{'owner_column':True,'ownership_index':scenario!='bad-verification','rows_preserved':True,'ownership_preserved':True,'rows_before':14,'rows_after':14,'meetings_schema':scenario!='bad-meetings-schema','meeting_rows_preserved':scenario!='bad-meetings-preservation','meetings_before':2,'meetings_after':3 if scenario=='meeting-count-mismatch' else 2}}))
+    Path(args[-1]).write_text(json.dumps({'status':'failed' if scenario=='bad-result' else 'ok','migrated_to':'0003' if scenario=='wrong-head' else '0005','verification':{'agendas_schema':scenario!='bad-agendas-schema','agenda_rows_preserved':scenario!='bad-agendas-preservation','agendas_before':1,'agendas_after':2 if scenario=='agenda-count-mismatch' else 1,'owner_column':True,'ownership_index':scenario!='bad-verification','rows_preserved':True,'ownership_preserved':True,'rows_before':14,'rows_after':14,'meetings_schema':scenario!='bad-meetings-schema','meeting_rows_preserved':scenario!='bad-meetings-preservation','meetings_before':2,'meetings_after':3 if scenario=='meeting-count-mismatch' else 2}}))
     print('Unhandled' if scenario=='migration-failure' else 'None')
 elif args[:2]==['secretsmanager','get-secret-value']:
     if scenario=='secret-read-failure': sys.exit(1)
@@ -274,6 +274,9 @@ elif args[:2]==['ecr','get-login-password']: print('synthetic')
             "bad-result",
             "wrong-head",
             "bad-verification",
+            "bad-agendas-schema",
+            "bad-agendas-preservation",
+            "agenda-count-mismatch",
             "bad-meetings-schema",
             "bad-meetings-preservation",
             "meeting-count-mismatch",

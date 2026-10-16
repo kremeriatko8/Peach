@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AgendaDialog } from "@/components/agenda-dialog";
 import { MeetingFormDialog } from "@/components/meeting-form-dialog";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -33,6 +34,7 @@ import { MEETINGS_PAGE_SIZE, useMeetingApi, useMeetings } from "@/lib/meetings";
 
 export function Meetings() {
   const [page, setPage] = useState(0);
+  const [agendaMeeting, setAgendaMeeting] = useState<Meeting | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Meeting | null>(null);
@@ -62,6 +64,13 @@ export function Meetings() {
 
   return (
     <div className="grid gap-8">
+      {agendaMeeting && (
+        <AgendaDialog
+          key={agendaMeeting.id}
+          meeting={agendaMeeting}
+          onClose={() => setAgendaMeeting(null)}
+        />
+      )}
       <PageHeader
         icon="🗓️"
         title="Meetings"
@@ -154,6 +163,13 @@ export function Meetings() {
                       )}
                     </div>
                     <div className="flex shrink-0 flex-col gap-1 sm:flex-row">
+                      <Button
+                        variant="outline"
+                        onClick={() => setAgendaMeeting(meeting)}
+                        aria-label={`Agenda for ${meeting.title}`}
+                      >
+                        Agenda
+                      </Button>
                       <Button
                         size="icon"
                         variant="ghost"

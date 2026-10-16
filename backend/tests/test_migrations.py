@@ -54,7 +54,7 @@ async def test_additive_upgrade_preserves_all_tasks_and_ownership(engine, revisi
                 ).mappings()
             ]
             result = await connection.run_sync(migrate, config)
-            assert result["migrated_to"] == "0004"
+            assert result["migrated_to"] == "0005"
             assert result["verification"]["meetings_schema"] is True
             assert result["verification"]["rows_before"] == len(before)
             assert result["verification"]["rows_after"] == len(before)
@@ -95,6 +95,8 @@ async def test_additive_upgrade_preserves_all_tasks_and_ownership(engine, revisi
 @pytest.mark.parametrize(
     "corruption",
     [
+        "ALTER TABLE agendas DROP CONSTRAINT ck_agendas_items",
+        "ALTER TABLE agendas ALTER COLUMN language DROP NOT NULL",
         "DROP INDEX ix_items_owner_id_created_at",
         "UPDATE items SET name = 'Changed'",
         "UPDATE items SET owner_id = 'user-b' WHERE owner_id IS NOT NULL",
@@ -170,5 +172,46 @@ async def test_existing_meeting_changes_fail_verification(engine, monkeypatch):
         async with engine.begin() as connection:
             await connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
             assert await connection.scalar(text("SELECT owner_id FROM meetings")) == "user-a"
+    finally:
+        await drop(engine, schema)
+
+
+async def test_upgrade_0004_and_repeated_run_preserve_agendas(engine, monkeypatch):
+    schema, config = await prepare(engine, "0004")
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+            await connection.run_sync(migrate, config)
+            await connection.execute(
+                text(
+                    "INSERT INTO meetings(owner_id,title,starts_at,"
+                    "duration_minutes,participant_count) "
+                    "VALUES ('user-a','Agenda parent','2026-10-09T07:00:00Z',30,2)"
+                )
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO agendas(meeting_id,items,action_items,language,ai_suggestion) "
+                    "SELECT id,'[{\"topic\":\"Keep\"}]'::jsonb,'[]'::jsonb,'en',"
+                    '\'{"model":"original"}\'::jsonb FROM meetings'
+                )
+            )
+            result = await connection.run_sync(migrate, config)
+            assert result["verification"]["agendas_before"] == 1
+            assert result["verification"]["agendas_after"] == 1
+        original = command.upgrade
+
+        def corrupt(config, target):
+            original(config, target)
+            config.attributes["connection"].execute(text("UPDATE agendas SET language='changed'"))
+
+        monkeypatch.setattr(command, "upgrade", corrupt)
+        with pytest.raises(ValueError, match="verification failed"):
+            async with engine.begin() as connection:
+                await connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+                await connection.run_sync(migrate, config)
+        async with engine.begin() as connection:
+            await connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+            assert await connection.scalar(text("SELECT language FROM agendas")) == "en"
     finally:
         await drop(engine, schema)
