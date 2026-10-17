@@ -15,7 +15,7 @@ log() { printf '\033[36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m==>\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
-if [[ -f "${ROOT}/.env" ]]; then
+if [[ "${PEACH_IGNORE_LOCAL_ENV:-false}" != true && -f "${ROOT}/.env" ]]; then
   # Variables already exported win over .env: `AWS_REGION=eu-central-1 make x`
   # must not be quietly reset to the region .env names.
   preset="$(export -p)"

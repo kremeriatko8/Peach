@@ -275,7 +275,17 @@ def cleanup_legacy_items(connection: Connection) -> dict[str, Any]:
 
 
 async def run(event: dict[str, Any]) -> dict[str, Any]:
-    if event not in ({"action": "migrate"}, {"action": "cleanup_legacy_items"}):
+    plain = event in (
+        {"action": "migrate"},
+        {"action": "cleanup_legacy_items"},
+        {"action": "inspect_revision"},
+    )
+    guarded = (
+        set(event) == {"action", "expected_from"}
+        and event.get("action") == "migrate"
+        and event.get("expected_from") in {"0004", "0005"}
+    )
+    if not plain and not guarded:
         raise ValueError("Only explicit migration or legacy cleanup invocations are accepted")
     engine = create_async_engine(
         get_settings().database_url, poolclass=NullPool, connect_args={"timeout": 30}
@@ -283,12 +293,43 @@ async def run(event: dict[str, Any]) -> dict[str, Any]:
     try:
         connection = await _connect(engine)
         async with aclosing(connection), connection.begin():
+            if event == {"action": "inspect_revision"}:
+                # Private IAM-only entry point; never dispatches migration or cleanup.
+                await connection.execute(text("SET TRANSACTION READ ONLY"))
+                values = (
+                    (await connection.execute(text("SELECT version_num FROM alembic_version")))
+                    .scalars()
+                    .all()
+                )
+                if len(values) != 1 or values[0] not in {"0004", "0005"}:
+                    raise ValueError("Unexpected actual database revision")
+                readonly = await connection.scalar(text("SHOW transaction_read_only"))
+                if readonly != "on":
+                    raise ValueError("Revision inspection must be read-only")
+                return {"status": "ok", "revision": values[0], "read_only": True}
             if event == {"action": "cleanup_legacy_items"}:
                 return await connection.run_sync(cleanup_legacy_items)
+            if guarded:
+                # Compare in the same transaction before Alembic can change any schema.
+                await connection.execute(
+                    text("LOCK TABLE alembic_version IN SHARE ROW EXCLUSIVE MODE")
+                )
+                actual = (
+                    (await connection.execute(text("SELECT version_num FROM alembic_version")))
+                    .scalars()
+                    .all()
+                )
+                if actual != [event["expected_from"]]:
+                    raise ValueError(
+                        "Actual database revision differs from the approved source revision"
+                    )
             root = Path(__file__).resolve().parent.parent
             config = Config(str(root / "alembic.ini"))
             config.set_main_option("script_location", str(root / "migrations"))
-            return await connection.run_sync(migrate, config)
+            result = await connection.run_sync(migrate, config)
+            if guarded:
+                result["from_revision"] = event["expected_from"]
+            return result
     finally:
         await engine.dispose()
 

@@ -18,7 +18,7 @@ die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 # --- configuration ----------------------------------------------------------
 
 # .env is the same file Compose reads; anything already exported wins over it.
-if [[ "${GITHUB_ACTIONS:-false}" != true && -f "${ENV_FILE}" ]]; then
+if [[ "${PEACH_IGNORE_LOCAL_ENV:-false}" != true && "${GITHUB_ACTIONS:-false}" != true && -f "${ENV_FILE}" ]]; then
   # Variables already exported win over .env: `AWS_REGION=eu-central-1 make x`
   # must not be quietly reset to the region .env names.
   preset="$(export -p)"
@@ -91,6 +91,10 @@ case "${1:-}" in
   *) die "usage: deploy-backend.sh [--preflight-only]" ;;
 esac
 [[ "$#" -le 1 ]] || die "usage: deploy-backend.sh [--preflight-only]"
+
+EXPECTED_DB_REVISION="${PEACH_EXPECTED_DB_REVISION:-0004}"
+[[ "${EXPECTED_DB_REVISION}" == 0004 || "${EXPECTED_DB_REVISION}" == 0005 ]] \
+  || die "Expected source database revision must be 0004 or 0005"
 
 # --- preflight --------------------------------------------------------------
 
@@ -201,6 +205,16 @@ IMAGE_DIGEST="$(aws ecr describe-images --repository-name "${ECR_REPOSITORY}" \
 [[ "${IMAGE_DIGEST}" == sha256:* ]] || die "cannot resolve published image digest"
 IMAGE_URI="${REGISTRY}/${ECR_REPOSITORY}@${IMAGE_DIGEST}"
 
+# Verify the exact published digest, not merely a similar local build, before DDL.
+# Network is disabled in the container: these imports and the 401 check cannot infer.
+docker run --rm --network none --entrypoint python "${IMAGE_URI}" -c '
+import app.lambda_handler, app.reporting.builder, app.reporting.mailer
+from app.migration_handler import EXPECTED_REVISION
+from app.ai.agenda_lambda import handler
+assert EXPECTED_REVISION == "0005"
+assert handler({"requestContext":{"http":{"method":"POST"}}}, None)["statusCode"] == 401
+' || die "published image smoke failed; no migration or public update"
+
 # Pin both validated parameter sets to the immutable published image.
 python3 - "${PARAMS_FILE}" "${RUNNER_PARAMS}" "${IMAGE_URI}" "${PLAN_FILE}" <<'PYIMAGE'
 import json, sys
@@ -239,12 +253,26 @@ if [[ "${SCHEMA_RELEASE}" == schema ]]; then
   MIGRATION_FUNCTION="$(aws cloudformation describe-stacks --stack-name "${MIGRATION_STACK_NAME}" \
     --query "Stacks[0].Outputs[?OutputKey=='FunctionName'].OutputValue | [0]" --output text)"
   aws lambda wait function-updated-v2 --function-name "${MIGRATION_FUNCTION}"
+  # Inspect through the new private runner in a READ ONLY transaction before any DDL.
+  INSPECTION_FILE="${WORK_DIR}/revision.json"
+  INSPECTION_ERROR="$(aws lambda invoke --function-name "${MIGRATION_FUNCTION}" \
+    --cli-binary-format raw-in-base64-out --cli-read-timeout 900 \
+    --payload '{"action":"inspect_revision"}' --query FunctionError --output text "${INSPECTION_FILE}")"
+  [[ -z "${INSPECTION_ERROR}" || "${INSPECTION_ERROR}" == None ]] \
+    || die "private revision inspection failed; migration and API update refused"
+  python3 - "${INSPECTION_FILE}" "${EXPECTED_DB_REVISION}" <<'REVISION'
+import json, sys
+with open(sys.argv[1]) as file:
+    result = json.load(file)
+if result.get("status") != "ok" or result.get("read_only") is not True or result.get("revision") != sys.argv[2]:
+    sys.exit("Actual source revision does not match approved revision; no migration invoked")
+REVISION
   FUNCTION_ERROR="$(aws lambda invoke --function-name "${MIGRATION_FUNCTION}" \
     --cli-binary-format raw-in-base64-out --cli-read-timeout 900 \
-    --payload '{"action":"migrate"}' --query FunctionError --output text "${RESULT_FILE}")"
+    --payload "{\"action\":\"migrate\",\"expected_from\":\"${EXPECTED_DB_REVISION}\"}" --query FunctionError --output text "${RESULT_FILE}")"
   [[ -z "${FUNCTION_ERROR}" || "${FUNCTION_ERROR}" == None ]] \
     || die "migration failed; public backend was not updated; inspect migration logs"
-  python3 - "${RESULT_FILE}" "${PLAN_FILE}" <<'VERIFY'
+  python3 - "${RESULT_FILE}" "${PLAN_FILE}" "${EXPECTED_DB_REVISION}" <<'VERIFY'
 import json, sys
 with open(sys.argv[1]) as file:
     result = json.load(file)
@@ -252,6 +280,7 @@ with open(sys.argv[2]) as file:
     expected_revision = json.load(file)["revision"]
 verification = result.get("verification", {})
 if (result.get("status") != "ok" or result.get("migrated_to") != expected_revision
+    or result.get("from_revision") != sys.argv[3]
     or any(verification.get(key) is not True for key in (
         "owner_column", "ownership_index", "rows_preserved", "ownership_preserved",
         "meetings_schema", "meeting_rows_preserved", "agendas_schema", "agenda_rows_preserved"))

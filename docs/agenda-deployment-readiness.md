@@ -1,5 +1,8 @@
 # Agenda lab: reviewed deployment handoff
 
+> October 17 update: see [guarded release procedure](agenda-guarded-release.md)
+> for resolved Docker/PostgreSQL 17 checks, current blockers, and automated gates.
+
 Preparation completed October 16, 2026 (Europe/Kyiv), on `feat/paste-agenda`.
 This document supersedes the first local implementation handoff for readiness.
 No resource was created/updated/deleted, no model was invoked, no production SQL

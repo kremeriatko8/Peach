@@ -2,7 +2,7 @@
 # Shared auth CLI setup. Callers disable tracing before sourcing this file.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
-if [[ -f "${ROOT}/.env" ]]; then
+if [[ "${PEACH_IGNORE_LOCAL_ENV:-false}" != true && -f "${ROOT}/.env" ]]; then
   preset="$(export -p)"
   set -a
   source "${ROOT}/.env" 2>/dev/null || die "could not load root .env"

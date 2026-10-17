@@ -1,5 +1,8 @@
 # Paste an agenda — implementation and release guide
 
+> October 17 update: see [guarded release procedure](agenda-guarded-release.md)
+> for resolved Docker/PostgreSQL 17 checks, current blockers, and automated gates.
+
 Status: local implementation. No live inference, deployment, production migration,
 budget mutation, or deployed UI verification has been performed by this work.
 
@@ -74,8 +77,8 @@ resources in the AI template. Paid calls are not part of test execution.
    action is `bedrock-mantle:CreateInference` on the verified existing default Mantle project ARN, with a model condition.
    Do not guess its ARN or add wildcard/project permissions without review.
 3. Review/create account-wide budget separately. Confirm email and no duplicate
-   budget. Billing permissions: budgets:ViewBudget, budgets:CreateBudget and, for
-   an intentional update, budgets:ModifyBudget as applicable to the deployer.
+   budget. Billing permissions: budgets:ViewBudget and budgets:ModifyBudget for
+   an explicitly approved create/update as applicable to the deployer.
    Review effective CloudFormation execution permissions before deploying.
 
    ```sh
