@@ -2,7 +2,9 @@
 
 ## Readiness
 
-Agenda is opened from each owned meeting. Paste → Parse → editable suggestion →
+Agenda is opened from the Meetings header action (choose an owned meeting or
+explicitly create one and continue), or from an existing meeting row.
+Paste → Parse → editable suggestion →
 manual correction → Save is implemented. Saves go to the existing authenticated
 PUT /api/v1/meetings/{id}/agenda, never to the parser. The original model proposal,
 model and prompt version remain separate from corrected fields. Applying meeting
@@ -122,3 +124,20 @@ auth and meeting-time); ESLint, TypeScript, Prettier and a local Next.js webpack
 static export passed using the previously verified public production URLs. Build
 artifacts are ignored and were not uploaded. No live AWS inspection/mutation,
 inference, login helper, new test database, migration or push occurred.
+
+
+## Entry-point correction
+
+The published frontend had an Agenda action only on saved meeting rows. Neither
+the header nor the New meeting form linked to it, so an empty account could not
+discover the feature. This was a navigation/empty-state gap; the route and agenda
+editor already existed. The local correction adds a visible Paste an Agenda
+header action, a meeting chooser, and an explicit create-and-continue path using
+the existing manual meeting form and existing AgendaDialog. Creation occurs only
+when the user submits the validated form, never merely by opening the chooser.
+No agenda is saved or model called automatically. Ordinary New meeting and Edit
+remain unchanged. Agenda save still requires an existing owned meeting ID.
+
+67 focused tests, ESLint, TypeScript, Prettier, diff checks and production static
+export passed after this correction. No AWS deployment or inference occurred.
+The corrected entry point needs a separately approved frontend-only redeployment.
