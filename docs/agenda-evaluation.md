@@ -1,11 +1,18 @@
-# Agenda evaluation — five deployed cases NOT RUN
+# Agenda evaluation and submission status — October 19, 2026
 
-One separately approved minimal Nova Converse smoke returned 4 input / 21 output
-tokens, 0.869 seconds and $0.00000528 estimated cost, with no retries. It is not an
-agenda parse, deployed UI test, or CloudWatch parser evidence. All result cells
-below are intentionally pending. No live JSON, model performance,
-CloudWatch logs or deployed recording has been collected. Mock tests prove code
-behavior, not Nova's resistance to prompt injection.
+Five real authenticated deployed-parser HTTP tests were completed with Nova Lite
+and agenda-v1: 4,457 input / 473 output tokens, estimated USD0.00038094.
+Actual JSON, table, CloudWatch logs and review remain unchanged under
+reports-local/agenda/lab6-nova-tests/. Three extraction-quality failures were
+recorded honestly; ambiguity and injection cases passed. All five schemas passed.
+
+Agenda-v2 is deployed DISABLED. No v2 live retests or deployed-UI recording have
+been completed. The five representative HTTP inputs differ from the exact course
+set below: email and non-agenda cases were not covered. This is real evidence,
+but not complete prescribed-case/deployed-frontend evidence. Do not relabel it.
+
+See [frontend completion plan](agenda-frontend-handoff.md) for the shortest remaining
+workflow. No login helper or new infrastructure is needed.
 
 ## Reproducible deployed workflow
 
@@ -45,36 +52,38 @@ approved. Keep the five evidence categories and report actual Nova model/usage i
 all results. Optional Claude comparisons require separate access/call approval;
 none are implied by this implementation or by mocked tests.
 
-## Written-answer drafts
+## Written answers based on actual v1 observations
 
-1. Failures and fixes: **requires actual runs**. Classify unsupported values as
-   prompt/model issues, accepted invalid structure as schema/validation issues,
-   and unclear interpretation/review as UI issues. Record exact observations.
-2. Injection: **actual outcome pending**. Damage is limited because the parser has
-   no DB access, the only tool produces data, saved names grant no account access,
-   JWT ownership is enforced by the save API, and users review before saving.
-   This limits damage even if a malicious owner suggestion passes validation.
-3. Cost: **measured tokens, model rates and average cost pending**. Sum every
-   attempt; compute monthly ~2,600 × mean cost. Compare $7.30 additional recurring
-   endpoint cost and include Lambda/logs. Budget alerts do not stop spending.
-4. Evaluation with 500 agendas: retain/recover source texts with consent first;
-   current implementation stores suggestions/corrections, not original paste text.
-   Without source text a faithful prompt re-run is impossible. De-identify a
-   consented corpus, split e.g. 100 development / 400 held-out, and freeze the test
-   set before prompt tuning. Run v1/v2 paired on identical source/date/timezone/model.
-   Score matched agenda/action items (precision/recall/F1), exact owner/date/duration
-   accuracy, hallucination rate, schema/parse failure rate, user edit distance and
-   correction time, tokens/cost/latency. Review ambiguous ground truth independently.
-   Report paired confidence intervals (bootstrap by agenda), per-language results,
-   and safety regressions. Do not call a cheaper prompt better solely on edit distance.
+1. English missed an explicit owner; Ukrainian mapped Wednesday to Tuesday and
+   omitted Friday's deadline; meeting end time became an extra action. These
+   passed schema validation: syntactic validity does not establish factual truth.
+   V2 adds calendar, owner/deadline/end-time guidance and timezone checks. Improved
+   model quality is still unverified. Human review/correction remains essential.
+2. The injection case omitted the invented CEO approval and budget. This is one
+   observed result, not universal resistance. JWT, fixed data-only tool, strict
+   validation, no parser DB access and ownership-checked human Save limit damage.
+3. Mean observed inference estimate USD0.000076188 per parse. At 20 organizations
+   ×30/week×52/12 = 2,600/month, approximately USD0.198089/month, excluding Lambda,
+   logs and existing resources. Rates: USD0.06/million input and USD0.24/million
+   output. Small-sample extrapolation, not an AWS bill or workload guarantee.
+   Compare the assignment's USD7.30/month interface endpoint: none is needed for
+   the parser outside VPC. AWS Budget notifications are alerts, not spending caps.
+4. For 500 agendas, retain consented source text plus original date/timezone:
+   suggestions/corrections alone cannot reproduce extraction or establish truth.
+   De-identify, freeze a held-out set, tune on a separate development set, and run
+   paired v1/v2 comparisons on identical inputs/model/context. Measure item/action
+   precision/recall, owner/date/duration accuracy, hallucinations, schema failures,
+   normalized edits, human correction time, usage/cost and latency. Blind-review
+   ambiguous ground truth, use paired confidence intervals, and reject safety
+   regressions. No such 500-case experiment has been performed.
 
-## Exactly five submission categories to collect later
+## Exactly five submission categories
 
-1. Commit link containing parser, infra/ai.yml, frontend and ADR (no commit created here).
+1. Commit link containing parser, infra/ai.yml, frontend and ADR: local commits exist; GitHub publication/link pending explicit push approval.
 2. <=45-second GIF/MP4 from deployed app: paste → parse → prefilled form → correction → Save.
-3. Completed five-case table with actual JSON/evaluations and measurements.
-4. One actual structured CloudWatch line with model, prompt version, usage, latency, cost.
-5. Short final answers to the four questions above, replacing pending measurements.
+3. Actual representative table exists; exact course cases and deployed-UI execution remain pending or require instructor acceptance of the difference.
+4. Actual CloudWatch line available in reports-local/agenda/lab6-nova-tests/cloudwatch-parser-evidence.md.
+5. Measured written answers above; revise if subsequent authorized tests change findings.
 
 Never include JWTs, AWS credentials, private emails, or production database URLs.
 

@@ -126,7 +126,17 @@ export const agendaApi = {
           "Parsing unavailable. Enter your agenda manually.",
       );
     }
-    const validated = parseResultSchema.safeParse(await response.json());
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      signal.throwIfAborted();
+      throw new ApiError(
+        422,
+        "The suggestion has invalid fields. Enter your agenda manually.",
+      );
+    }
+    const validated = parseResultSchema.safeParse(body);
     if (!validated.success)
       throw new ApiError(
         422,

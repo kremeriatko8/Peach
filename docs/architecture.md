@@ -1,8 +1,9 @@
 # Peach C4 level 2 — containers
 
 The original Lab 1 C4 source was not present in this repository. This diagram
-extends the documented deployed design. The parser and agenda feature are local
-implementation/prepared infrastructure until explicitly deployed and verified.
+extends the documented deployed design. Backend and agenda migration0005 are
+deployed. The parser is deployed but disabled;
+frontend agenda publication and v2 live-quality verification remain pending.
 
 ```mermaid
 flowchart LR

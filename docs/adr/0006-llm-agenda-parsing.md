@@ -1,9 +1,10 @@
 # ADR 0006: Reviewed agenda suggestions through Amazon Bedrock
 
-Status: Nova Lite adaptation implemented locally October 18, 2026. One separately
-approved minimal Converse request succeeded (4 input / 21 output tokens, 0.869 s,
-$0.00000528 estimated, no retries). This did not test agenda tool use. Deployment
-and instructor acceptance remain pending. See agenda-release-audit.md in docs/.
+Status: implemented and deployed October 19, 2026. Backend/migration0005
+are released; agenda-v2 parser is deployed DISABLED, frontend publication pending.
+Five actual v1 HTTP tests and CloudWatch evidence exist; v2 model quality remains
+unverified. Instructor acceptance of the Nova substitution remains pending.
+See agenda-v2-quality.md and agenda-evaluation.md.
 
 ## Context
 
@@ -29,8 +30,8 @@ Use amazon.nova-lite-v1:0 through non-streaming boto3 Bedrock Runtime Converse i
 us-east-1, directly in-region, with record_agenda tool use and full Pydantic
 validation. Derive the tool hint from that schema, inline references and strip
 unsupported root annotations. One exact named tool invocation is required; one
-repair is allowed. Retain PROMPT_VERSION=agenda-v1 because the semantic extraction
-instructions remain unchanged; model ID independently identifies this experiment.
+repair is allowed. PROMPT_VERSION=agenda-v2 identifies revised extraction guidance
+and deterministic reference calendar; historical v1 evidence remains unchanged.
 
 Keep the separate 512MB/30s parser Lambda outside VPC, disabled initially. Explicit
 SigV4 role credentials, exact-model InvokeModel grant, administrator-owned mandatory
@@ -64,19 +65,21 @@ services. Up to two attempts can bill. No reserved/provisioned concurrency or fi
 inference commitment is necessary. $5 budget notifications are
 alerts, not hard caps. New pricing/provider logic must pass offline tests first.
 
-Log model, prompt version, Cognito subject, observed token totals, latency and cost;
+Log model, prompt version, invocation identifier, attempt/repair counts, per-attempt
+and aggregate observed token usage, latency, safe outcomes and estimated cost;
 never raw source, JWTs, database URLs or raw provider exceptions. Flag incomplete
 usage on errors. Preserve manual entry when disabled/unavailable and keep save
 independent of inference. Do not claim Nova's extraction quality, Ukrainian handling,
-latency or injection resistance from mocked tests; the five deployed cases remain
-required actual evidence.
+latency or injection resistance from mocked tests. Five real representative v1
+HTTP cases exist; exact course inputs and deployed UI evidence are still incomplete.
 
 Nova is ACTIVE and AUTHORIZED in this account/region; on-demand quotas are
 4,000,000 tokens/minute and 200 requests/minute. The temporary laptop inference
 policy was detached after the approved smoke and verified unattached. Existing Lambda concurrency, shared ECR retention,
 budget, fresh backup and guarded migration prerequisites remain independent gates.
-No live IAM/resources were changed for this decision. Initial agenda migration 0005
-still needs separate approval; this provider adaptation adds no database migration.
+No live IAM/resources were changed by the original provider adaptation itself.
+Migration0005 was subsequently approved and released. No further migration is
+required for v2 or the frontend.
 
 
 ## University lab simplification

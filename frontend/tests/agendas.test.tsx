@@ -16,7 +16,7 @@ const result: ParseResult = {
     language: "uk",
   },
   model: "amazon.nova-lite-v1:0",
-  prompt_version: "agenda-v1",
+  prompt_version: "agenda-v2",
   input_tokens: 100,
   output_tokens: 50,
   latency_ms: 1500,
@@ -86,7 +86,7 @@ describe("Agendas", () => {
     expect(payload.items[0].topic).toBe("Corrected");
     expect(payload.ai_suggestion?.agenda.items[0].topic).toBe("Pricing");
     expect(payload.ai_suggestion?.model).toBe("amazon.nova-lite-v1:0");
-    expect(payload.ai_suggestion?.prompt_version).toBe("agenda-v1");
+    expect(payload.ai_suggestion?.prompt_version).toBe("agenda-v2");
     expect(payload.meeting).toBeUndefined();
   });
   it("cancels and discards a late parser response", async () => {
@@ -195,5 +195,132 @@ describe("Parser HTTP client", () => {
     await expect(
       agendaApi.parse("Pricing", "token", new AbortController().signal),
     ).rejects.toMatchObject({ status: 0 });
+  });
+});
+
+describe("Agenda review and save integration", () => {
+  it("saves through the real API client with JWT and unchanged v2 provenance", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.example");
+    vi.stubEnv("NEXT_PUBLIC_PARSER_URL", "https://parser.example/");
+    const fetch = vi
+      .fn()
+      .mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === "https://parser.example/")
+          return { ok: true, json: async () => structuredClone(result) };
+        if (init?.method === "PUT") {
+          const payload = JSON.parse(String(init.body));
+          return { ok: true, json: async () => ({ ...saved, ...payload }) };
+        }
+        return { ok: true, json: async () => null };
+      });
+    vi.stubGlobal("fetch", fetch);
+    const close = vi.fn();
+    renderWithQuery(<AgendaDialog meeting={makeMeeting()} onClose={close} />);
+    await screen.findByRole("button", { name: "Add agenda item" });
+    await paste();
+    await screen.findByDisplayValue("Pricing");
+    fireEvent.change(screen.getByLabelText("Item 1 owner"), {
+      target: { value: "Reviewed owner" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save agenda" }));
+    await waitFor(() => expect(close).toHaveBeenCalled());
+    const call = fetch.mock.calls.find(([, init]) => init?.method === "PUT")!;
+    expect(call[0]).toBe(
+      "https://api.example/api/v1/meetings/" + makeMeeting().id + "/agenda",
+    );
+    expect(call[1].headers.Authorization).toBe("Bearer test-access");
+    const payload = JSON.parse(call[1].body);
+    expect(payload.items[0].owner).toBe("Reviewed owner");
+    expect(payload.ai_suggestion.agenda.items[0].owner).toBe("Олена");
+    expect(payload.ai_suggestion.prompt_version).toBe("agenda-v2");
+    expect(payload.meeting).toBeUndefined();
+  });
+
+  it("can save a manual agenda after disabled-parser failure", async () => {
+    vi.spyOn(agendaApi, "parse").mockRejectedValue(
+      new ApiError(503, "Parsing unavailable. Enter your agenda manually."),
+    );
+    const { put } = await open();
+    await paste();
+    expect(await screen.findByRole("alert")).toHaveTextContent("manually");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add agenda item" }),
+    );
+    fireEvent.change(screen.getByLabelText("Item 1 topic"), {
+      target: { value: "Manual fallback" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save agenda" }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    expect(put.mock.calls[0][1].ai_suggestion).toBeNull();
+    expect(put.mock.calls[0][1].items[0].topic).toBe("Manual fallback");
+  });
+
+  it("applies reviewed meeting fields only with explicit opt-in", async () => {
+    vi.spyOn(agendaApi, "parse").mockResolvedValue({
+      ...structuredClone(result),
+      agenda: {
+        ...structuredClone(result.agenda),
+        title: "Review",
+        starts_at: "2026-11-03T14:00:00+02:00",
+        duration_minutes: 60,
+      },
+    });
+    const { put } = await open();
+    await paste();
+    await screen.findByDisplayValue("Review");
+    fireEvent.change(screen.getByLabelText("title"), {
+      target: { value: "Corrected title" },
+    });
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(screen.getByRole("button", { name: "Save agenda" }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    expect(put.mock.calls[0][1].meeting).toEqual({
+      title: "Corrected title",
+      starts_at: "2026-11-03T14:00:00+02:00",
+      duration_minutes: 60,
+    });
+    expect(put.mock.calls[0][1].ai_suggestion?.agenda.title).toBe("Review");
+  });
+
+  it("keeps historical v1 provenance when manually updating an existing agenda", async () => {
+    vi.spyOn(agendaApi, "get").mockResolvedValue({
+      ...saved,
+      items: result.agenda.items,
+      ai_suggestion: {
+        agenda: result.agenda,
+        model: result.model,
+        prompt_version: "agenda-v1",
+      },
+    });
+    const put = vi.spyOn(agendaApi, "put").mockResolvedValue(saved);
+    renderWithQuery(<AgendaDialog meeting={makeMeeting()} onClose={vi.fn()} />);
+    await screen.findByDisplayValue("Pricing");
+    fireEvent.change(screen.getByLabelText("Item 1 topic"), {
+      target: { value: "Updated" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save agenda" }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    expect(put.mock.calls[0][1].ai_suggestion?.prompt_version).toBe(
+      "agenda-v1",
+    );
+  });
+
+  it("maps malformed successful JSON to a private manual-fallback error", async () => {
+    vi.stubEnv("NEXT_PUBLIC_PARSER_URL", "https://parser.example/");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError("sensitive provider fragment");
+        },
+      }),
+    );
+    await expect(
+      agendaApi.parse("Notes", "synthetic-token", new AbortController().signal),
+    ).rejects.toMatchObject({
+      status: 422,
+      message: "The suggestion has invalid fields. Enter your agenda manually.",
+    });
   });
 });
