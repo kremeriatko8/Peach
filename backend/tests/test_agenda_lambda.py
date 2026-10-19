@@ -60,7 +60,7 @@ def test_success_logs_no_content_or_token(parser, tokens, caplog):
     assert result["statusCode"] == 200
     assert json.loads(result["body"])["estimated_cost_usd"] == 0.0000108
     log = json.loads(caplog.records[-1].message)
-    assert "user_id" not in log and log["prompt_version"] == "agenda-v2"
+    assert "user_id" not in log and log["prompt_version"] == "agenda-v3"
     assert log["model"] == "amazon.nova-lite-v1:0"
     assert log["input_tokens"] == 100 and log["latency_ms"] >= 0
     assert (
@@ -175,7 +175,10 @@ def test_real_mocked_parser_emits_complete_attempt_telemetry(parser, tokens, mon
     assert handler.handler(request, None)["statusCode"] == 200
     log = json.loads(caplog.records[-1].message)
     assert log["provider_call_count"] == 2 and log["repair_attempts"] == 1
-    assert [a["reason"] for a in log["attempts"]] == ["validation_failed", "success"]
+    assert [a["reason"] for a in log["attempts"]] == [
+        "validation_failed",
+        "source_fields_neutralized",
+    ]
     assert log["usage_complete"] and log["cost_complete"]
     assert log["input_tokens"] == sum(a["input_tokens"] for a in log["attempts"]) == 200
     assert log["output_tokens"] == sum(a["output_tokens"] for a in log["attempts"]) == 100
@@ -264,3 +267,22 @@ def test_invalid_configuration_fails_closed_and_logs_without_sensitive_error(
     assert log["model"] is None
     assert "private config" not in caplog.text + result["body"]
     parser.assert_not_called()
+
+
+def test_exact_injection_returns_manual_fallback_with_zero_provider_calls(
+    parser, tokens, monkeypatch, caplog
+):
+    from app.ai.agenda import parse_agenda
+    from test_agenda_grounding import INJECTION
+
+    runtime = Mock()
+    monkeypatch.setattr(
+        handler, "parse_agenda", lambda *a, **kw: parse_agenda(*a, client=runtime, **kw)
+    )
+    result = handler.handler(event(tokens, text=INJECTION), None)
+    assert result["statusCode"] == 422 and "manually" in result["body"]
+    runtime.converse.assert_not_called()
+    log = json.loads(caplog.records[-1].message)
+    assert log["provider_call_count"] == 0 and log["estimated_cost_usd"] == 0
+    assert log["reason"] == "source_instruction_rejected"
+    assert "admin@example.com" not in caplog.text

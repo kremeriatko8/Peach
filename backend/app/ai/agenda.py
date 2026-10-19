@@ -9,9 +9,10 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from app.ai.grounding import INSTRUCTIONS, clean_proposal, ground_proposal
 from app.config import get_settings
 
-PROMPT_VERSION = "agenda-v2"
+PROMPT_VERSION = "agenda-v3"
 MAX_TEXT = 10_000
 
 
@@ -243,6 +244,11 @@ def extraction_prompt(today: date, tz: str) -> str:
         "Never invent missing information; use null for missing or ambiguous values. "
         "Preserve source language in titles, topics and tasks; preserve names exactly as written. "
         "Put an explicitly assigned person's name in owner, not only in topic/task text. "
+        "Null means JSON null, never the string null. Do not fill missing numbers with 1. "
+        "Copy explicit durations and owners; otherwise use null, never a default. "
+        "An action must be a real commitment/request, not a discussion topic. "
+        "Copy action task wording verbatim from its source clause, without paraphrase. "
+        "Do not convert a meeting finish, agenda heading or uncertainty into a task. "
         "Distinguish discussion items from concrete assigned follow-up work; "
         "a task may have an owner even if no due date is given. "
         "Keep vague 'someone' owners null. Do not invent attendees or assignments. "
@@ -289,6 +295,9 @@ def parse_agenda(text: str, today: date, tz: str, *, client=None, deadline=None)
     if not text.strip() or len(text) > MAX_TEXT:
         raise ValueError("Agenda text must contain 1–10,000 characters")
     ZoneInfo(tz)
+    if INSTRUCTIONS.search(text):
+        usage = Usage(failure_reason="source_instruction_rejected")
+        raise ParsingError(usage)
     settings = get_settings()
     deadline = deadline or time.monotonic() + 24
     system = extraction_prompt(today, tz)
@@ -360,13 +369,19 @@ def parse_agenda(text: str, today: date, tz: str, *, client=None, deadline=None)
                 raise ValueError("Call record_agenda exactly once without truncation")
             if tools[0]["name"] != "record_agenda":
                 raise ValueError("Unexpected tool")
-            parsed = ParsedAgenda.model_validate(tools[0]["input"])
+            cleaned = clean_proposal(tools[0]["input"])
+            parsed = ParsedAgenda.model_validate(cleaned)
             validate_local_start(parsed, tz)
             # Resource bounds supplement the exact assignment schema.
             if len(parsed.items) > 100 or len(parsed.action_items) > 100:
                 raise ValueError("At most 100 agenda and action items are allowed")
-            current.reason = "success"
-            return parsed, usage
+            grounded = ground_proposal(parsed, text, today)
+            current.reason = (
+                "success"
+                if grounded == parsed and cleaned == tools[0]["input"]
+                else "source_fields_neutralized"
+            )
+            return grounded, usage
         except (ValidationError, ValueError) as error:
             current.reason = "validation_failed"
             if attempt:

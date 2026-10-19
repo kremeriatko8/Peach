@@ -6,8 +6,14 @@ Actual JSON, table, CloudWatch logs and review remain unchanged under
 reports-local/agenda/lab6-nova-tests/. Three extraction-quality failures were
 recorded honestly; ambiguity and injection cases passed. All five schemas passed.
 
-Agenda-v2 is deployed DISABLED. No v2 live retests or deployed-UI recording have
-been completed. The five representative HTTP inputs differ from the exact course
+Five agenda-v2 prescribed-category UI tests have now completed. User reports
+Ukrainian/relative-date partials, email/shopping-list passes and an injection
+FAILURE. Six provider attempts (one repair) consumed 9,185 input/1,105 output
+tokens, estimated USD0.00081630. Actual v2 JSON/screenshots were not supplied;
+CloudWatch verifies telemetry, not individual output fields. Evidence:
+reports-local/agenda/lab6-v2-ui-tests-20261019/. Inputs differ from v1, so compare
+qualitatively. Parser is verified DISABLED. Local v3 remediation is not deployed
+or real-model verified. No complete deployed-UI recording has been supplied. The five representative HTTP inputs differ from the exact course
 set below: email and non-agenda cases were not covered. This is real evidence,
 but not complete prescribed-case/deployed-frontend evidence. Do not relabel it.
 

@@ -324,3 +324,25 @@ describe("Agenda review and save integration", () => {
     });
   });
 });
+
+it("shows placeholder owners as blank without rewriting original provenance", async () => {
+  vi.spyOn(agendaApi, "parse").mockResolvedValue({
+    ...structuredClone(result),
+    agenda: {
+      ...structuredClone(result.agenda),
+      items: [{ topic: "Review", owner: "null", minutes: null }],
+      action_items: [{ task: "Send notes", owner: " NULL ", due: null }],
+    },
+  });
+  const { put } = await open();
+  await paste();
+  await screen.findByDisplayValue("Review");
+  expect(screen.getByLabelText("Item 1 owner")).toHaveValue("");
+  expect(screen.getByLabelText("Action 1 owner")).toHaveValue("");
+  await userEvent.click(screen.getByRole("button", { name: "Save agenda" }));
+  await waitFor(() => expect(put).toHaveBeenCalled());
+  expect(put.mock.calls[0][1].items[0].owner).toBeNull();
+  expect(put.mock.calls[0][1].ai_suggestion?.agenda.items[0].owner).toBe(
+    "null",
+  );
+});

@@ -571,7 +571,7 @@ def test_legacy_budget_cannot_relax_cost_basis_when_console_support_is_added(cha
 
 
 @pytest.mark.parametrize(
-    "version,accepted", [("agenda-v2", True), ("agenda-v1", False)]
+    "version,accepted", [("agenda-v3", True), ("agenda-v2", False)]
 )
 def test_paid_smoke_checks_current_prompt_version_offline(
     monkeypatch, tmp_path, version, accepted

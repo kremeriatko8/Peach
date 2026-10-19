@@ -32,6 +32,21 @@ const empty: ParsedAgenda = {
   language: "und",
 };
 
+function reviewDraft(agenda: ParsedAgenda): ParsedAgenda {
+  const owner = (value: string | null) =>
+    value?.trim().toLowerCase() === "null" || value?.trim() === ""
+      ? null
+      : value;
+  return {
+    ...structuredClone(agenda),
+    items: agenda.items.map((item) => ({ ...item, owner: owner(item.owner) })),
+    action_items: agenda.action_items.map((item) => ({
+      ...item,
+      owner: owner(item.owner),
+    })),
+  };
+}
+
 export function AgendaDialog({
   meeting,
   onClose,
@@ -67,14 +82,16 @@ export function AgendaDialog({
     setInitialized(true);
     const data = query.data;
     setDraft(
-      data
-        ? {
-            ...empty,
-            items: data.items,
-            action_items: data.action_items,
-            language: data.language,
-          }
-        : empty,
+      reviewDraft(
+        data
+          ? {
+              ...empty,
+              items: data.items,
+              action_items: data.action_items,
+              language: data.language,
+            }
+          : empty,
+      ),
     );
     setSuggestion(data?.ai_suggestion ?? null);
   }
@@ -150,7 +167,7 @@ export function AgendaDialog({
     try {
       const result = await agendaApi.parse(text, auth.accessToken, signal);
       signal.throwIfAborted();
-      setDraft(structuredClone(result.agenda));
+      setDraft(reviewDraft(result.agenda));
       setSuggestion({
         agenda: structuredClone(result.agenda),
         model: result.model,

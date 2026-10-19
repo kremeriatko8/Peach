@@ -1,9 +1,11 @@
 # ADR 0006: Reviewed agenda suggestions through Amazon Bedrock
 
 Status: implemented and deployed October 19, 2026. Backend/migration0005
-are released; agenda-v2 parser is deployed DISABLED, frontend publication pending.
-Five actual v1 HTTP tests and CloudWatch evidence exist; v2 model quality remains
-unverified. Instructor acceptance of the Nova substitution remains pending.
+are released; frontend is published and agenda-v2 parser is DISABLED after the
+user reported a prompt-injection failure in five real UI tests. V1 and v2
+CloudWatch evidence remain separate; v2 JSON/screenshots are missing. Local v3
+source checks and placeholder cleanup are documented in agenda-v3-safety.md and
+are not deployed or real-model verified. Instructor acceptance of the Nova substitution remains pending.
 See agenda-v2-quality.md and agenda-evaluation.md.
 
 ## Context
