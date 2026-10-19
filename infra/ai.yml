@@ -23,11 +23,12 @@ Parameters:
     Description: Explicit HTTPS frontend origins; no wildcard. Add localhost only for local testing.
   ParserModel:
     Type: String
-    Default: anthropic.claude-opus-5-5
+    Default: amazon.nova-lite-v1:0
+    AllowedValues: [amazon.nova-lite-v1:0]
   InferenceResourceArn:
     Type: String
-    Description: Existing default Mantle project ARN. The client uses the default project.
-    AllowedPattern: '^arn:aws:bedrock-mantle:us-east-1:[0-9]{12}:project/default$'
+    Description: Exact in-region Nova Lite foundation-model ARN.
+    AllowedPattern: '^arn:aws:bedrock:us-east-1::foundation-model/amazon\.nova-lite-v1:0$'
   InputUsdPerMillion:
     Type: Number
     MinValue: 0.000001
@@ -43,6 +44,8 @@ Resources:
   Role:
     Type: AWS::IAM::Role
     Properties:
+      # Administrator creates this boundary policy separately; operator cannot edit it.
+      PermissionsBoundary: !Sub 'arn:aws:iam::${AWS::AccountId}:policy/PeachAgendaParserBoundary'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -55,11 +58,8 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: bedrock-mantle:CreateInference
+                Action: bedrock:InvokeModel
                 Resource: !Ref InferenceResourceArn
-                Condition:
-                  StringEquals:
-                    'bedrock-mantle:Model': !Ref ParserModel
               - Effect: Allow
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !GetAtt LogGroup.Arn
@@ -79,7 +79,7 @@ Resources:
       Role: !GetAtt Role.Arn
       MemorySize: 512
       Timeout: 30
-      ReservedConcurrentExecutions: 1
+      # Low-traffic lab uses shared account concurrency; no reservation or provisioned capacity.
       LoggingConfig: {LogGroup: !Ref LogGroup}
       Environment:
         Variables:

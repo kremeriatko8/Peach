@@ -1,3 +1,9 @@
+> **October 18 Nova adaptation:** Provider/model instructions below are historical.
+> Current implementation uses amazon.nova-lite-v1:0 via Runtime Converse; see
+> [current release guide](agenda-ai.md) and [ADR 0006](adr/0006-llm-agenda-parsing.md).
+> This deviation from required Claude is not instructor approved. Existing infrastructure
+> blockers remain; historical model checks/results are not Nova availability evidence.
+
 # Agenda initial implementation handoff
 
 For the completed preparation review, AWS results and current test counts, see

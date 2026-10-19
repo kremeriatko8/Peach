@@ -17,20 +17,24 @@ def main():
     parser.add_argument("--today", type=date.fromisoformat, default=date.today())
     parser.add_argument("--tz", default="Europe/Kyiv")
     args = parser.parse_args()
+    if os.environ.get("PEACH_APPROVE_PAID_INFERENCE") != "yes":
+        parser.error("Paid inference requires explicit approval: PEACH_APPROVE_PAID_INFERENCE=yes")
     settings = get_settings()
     if args.command == "hello":
-        result = make_client().messages.create(
-            model=settings.parser_model,
-            max_tokens=128,
-            messages=[{"role": "user", "content": "Say hello in one sentence."}],
+        result = make_client().converse(
+            modelId=settings.parser_model,
+            inferenceConfig={"maxTokens": 128, "temperature": 0},
+            messages=[{"role": "user", "content": [{"text": "Say hello in one sentence."}]}],
         )
         print(
             json.dumps(
                 {
-                    "answer": "".join(b.text for b in result.content if b.type == "text"),
-                    "stop_reason": result.stop_reason,
-                    "input_tokens": result.usage.input_tokens,
-                    "output_tokens": result.usage.output_tokens,
+                    "answer": "".join(
+                        b.get("text", "") for b in result["output"]["message"]["content"]
+                    ),
+                    "stop_reason": result["stopReason"],
+                    "input_tokens": result["usage"]["inputTokens"],
+                    "output_tokens": result["usage"]["outputTokens"],
                 },
                 ensure_ascii=False,
                 indent=2,

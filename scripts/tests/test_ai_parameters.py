@@ -14,9 +14,9 @@ def parameters():
     return {
         "ImageUri": "example/peach@sha256:" + "a" * 64,
         "FrontendOrigins": "https://example.cloudfront.net",
-        "InferenceResourceArn": "arn:aws:bedrock-mantle:us-east-1:123456789012:project/default",
-        "InputUsdPerMillion": "4",
-        "OutputUsdPerMillion": "20",
+        "InferenceResourceArn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0",
+        "InputUsdPerMillion": "0.06",
+        "OutputUsdPerMillion": "0.24",
         "CognitoAuthority": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_TEST",
         "CognitoClientId": "client",
         "CognitoJwksJson": '{"keys":[{"kid":"test"}]}',
@@ -31,6 +31,7 @@ def test_valid_disabled_configuration():
     "key,value",
     [
         ("ParserEnabled", "true"),
+        ("ParserModel", "anthropic.claude-opus-5-5"),
         ("FrontendOrigins", "*"),
         ("FrontendOrigins", "http://example.com"),
         ("ImageUri", "image:latest"),

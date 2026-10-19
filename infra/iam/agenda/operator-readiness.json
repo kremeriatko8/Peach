@@ -1,0 +1,227 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "NovaModelMetadataOnly",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:GetFoundationModel"
+      ],
+      "Resource": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0"
+    },
+    {
+      "Sid": "RegionalModelAvailabilityRead",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:GetFoundationModelAvailability"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "BudgetReadOnly",
+      "Effect": "Allow",
+      "Action": "budgets:ViewBudget",
+      "Resource": "arn:aws:budgets::968053399627:budget/*"
+    },
+    {
+      "Sid": "SharedImageRetentionRead",
+      "Effect": "Allow",
+      "Action": "ecr:GetLifecyclePolicy",
+      "Resource": "arn:aws:ecr:us-east-1:968053399627:repository/peach-backend"
+    },
+    {
+      "Sid": "RegionalCapacityReadWithoutResourceScope",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetAccountSettings",
+        "servicequotas:ListServiceQuotas"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:ListStackResources",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:GetTemplate",
+        "cloudformation:GetTemplateSummary"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-backend/*",
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-migrations/*",
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-frontend/*",
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-ai/*",
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-budget/*",
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-auth/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:ValidateTemplate",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups",
+        "logs:DescribeLogGroups",
+        "logs:DescribeResourcePolicies",
+        "logs:DescribeIndexPolicies"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetFunctionConcurrency",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:GetFunctionRecursionConfig",
+        "lambda:GetRuntimeManagementConfig",
+        "lambda:GetFunctionScalingConfig",
+        "lambda:GetFunctionUrlConfig",
+        "lambda:GetPolicy",
+        "lambda:ListTags"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-backend",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-migrations",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-agenda-parser"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:GetRepositoryPolicy",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:968053399627:repository/peach-backend"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "rds:DescribeDBClusters"
+      ],
+      "Resource": "arn:aws:rds:us-east-1:968053399627:cluster:peach-db"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "rds:DescribeDBClusterSnapshots"
+      ],
+      "Resource": [
+        "arn:aws:rds:us-east-1:968053399627:cluster:peach-db",
+        "arn:aws:rds:us-east-1:968053399627:cluster-snapshot:peach-*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": "arn:aws:secretsmanager:us-east-1:968053399627:secret:peach/backend/database-url-EbUSp9"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": "arn:aws:s3:::peach-frontend-968053399627-us-east-1"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::peach-frontend-968053399627-us-east-1/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:GetInvalidation",
+        "cloudfront:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:cloudfront::968053399627:distribution/E13PELWU9NKJR8"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:FilterLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-agenda-parser:*",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-migrations:*",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-backend:*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketPolicy",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketOwnershipControls",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetBucketTagging",
+        "s3:GetBucketVersioning"
+      ],
+      "Resource": "arn:aws:s3:::peach-frontend-968053399627-us-east-1"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:GetOriginAccessControl"
+      ],
+      "Resource": "arn:aws:cloudfront::968053399627:origin-access-control/E1VMMOVZ5XVMVA"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:DescribeFunction",
+        "cloudfront:GetFunction",
+        "cloudfront:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:cloudfront::968053399627:function/peach-frontend-rewrite"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "rds:DescribeDBInstances",
+        "rds:ListTagsForResource"
+      ],
+      "Resource": [
+        "arn:aws:rds:us-east-1:968053399627:db:peach-db-1",
+        "arn:aws:rds:us-east-1:968053399627:cluster:peach-db"
+      ]
+    }
+  ]
+}

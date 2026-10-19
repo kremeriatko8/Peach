@@ -32,7 +32,7 @@ def test_parser_has_no_database_or_network_resources():
     )
     function = resources["Parser"]["Properties"]
     assert function["MemorySize"] == 512 and function["Timeout"] == 30
-    assert function["ReservedConcurrentExecutions"] == 1
+    assert "ReservedConcurrentExecutions" not in function
     assert "VpcConfig" not in function
     assert "DATABASE_URL" not in function["Environment"]["Variables"]
     assert function["ImageConfig"]["Command"] == ["app.ai.agenda_lambda.handler"]
@@ -41,8 +41,8 @@ def test_parser_has_no_database_or_network_resources():
     statements = resources["Role"]["Properties"]["Policies"][0]["PolicyDocument"][
         "Statement"
     ]
-    assert statements[0]["Action"] == "bedrock-mantle:CreateInference"
-    assert "bedrock:InvokeModel" not in str(statements)
+    assert statements[0]["Action"] == "bedrock:InvokeModel"
+    assert "bedrock-mantle" not in str(statements)
 
 
 def test_budget_is_email_only_five_dollars():
@@ -50,6 +50,15 @@ def test_budget_is_email_only_five_dollars():
     props = template["Resources"]["MonthlyBudget"]["Properties"]
     assert props["Budget"]["BudgetLimit"] == {"Amount": 5, "Unit": "USD"}
     assert props["Budget"]["TimeUnit"] == "MONTHLY"
+    assert props["Budget"]["CostTypes"] == {
+        "UseBlended": False,
+        "UseAmortized": False,
+        "IncludeCredit": False,
+        "IncludeRefund": False,
+    }
+    assert template["Parameters"]["BudgetName"]["AllowedValues"] == [
+        "peach-monthly-cost-alert"
+    ]
     assert (
         props["NotificationsWithSubscribers"][0]["Subscribers"][0]["SubscriptionType"]
         == "EMAIL"

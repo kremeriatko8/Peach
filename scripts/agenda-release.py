@@ -153,6 +153,16 @@ def stack(aws, name, optional=False):
         ):
             return None
         raise
+    if name in {
+        "peach-backend",
+        "peach-migrations",
+        "peach-frontend",
+        "peach-ai",
+        "peach-budget",
+    }:
+        require(
+            not result.get("RoleARN"), "Unreviewed CloudFormation service role: " + name
+        )
     require(
         result["StackStatus"]
         in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"},
@@ -196,33 +206,101 @@ def load_state(args):
     return data
 
 
+def check_capacity(aws):
+    """Lab parser shares regional concurrency; no reservation/quota increase needed."""
+    free = aws.client("lambda").get_account_settings()["AccountLimit"][
+        "UnreservedConcurrentExecutions"
+    ]
+    require(type(free) is int and free > 0, "No unreserved Lambda capacity available")
+
+
+def matching_budget(budget):
+    """Require the named account-wide, pre-credit budget, not a filtered lookalike."""
+    costs = budget.get("CostTypes", {})
+    return (
+        budget.get("BudgetName") == "peach-monthly-cost-alert"
+        and budget.get("TimeUnit") == "MONTHLY"
+        and budget.get("BudgetType") == "COST"
+        and budget.get("BudgetLimit", {}).get("Unit") == "USD"
+        and float(budget.get("BudgetLimit", {}).get("Amount", 0)) == 5
+        and not budget.get("CostFilters")
+        and not budget.get("FilterExpression")
+        and costs.get("IncludeCredit") is False
+        and costs.get("IncludeRefund") is False
+        and costs.get("UseBlended", False) is False
+        and costs.get("UseAmortized", False) is False
+    )
+
+
+def check_image_retention(aws, images):
+    """Read-only gate, repeated immediately before publishing a new shared image."""
+    from botocore.exceptions import ClientError
+
+    ecr = aws.client("ecr")
+    try:
+        rules = json.loads(
+            ecr.get_lifecycle_policy(repositoryName="peach-backend")[
+                "lifecyclePolicyText"
+            ]
+        )["rules"]
+    except ClientError as error:
+        if error.response["Error"]["Code"] != "LifecyclePolicyNotFoundException":
+            raise
+        rules = []
+    require(
+        all(r["selection"]["tagStatus"] == "untagged" for r in rules),
+        "Lifecycle may expire tagged rollback/report images; administrator must protect them",
+    )
+    for uri in set(images.values()):
+        require(
+            re.fullmatch(
+                rf"{ACCOUNT}\.dkr\.ecr\.{REGION}\.amazonaws\.com/peach-backend@sha256:[a-f0-9]{{64}}",
+                uri,
+            ),
+            "Unexpected protected image repository or digest",
+        )
+        detail = ecr.describe_images(
+            repositoryName="peach-backend",
+            imageIds=[{"imageDigest": uri.split("@")[-1]}],
+        )["imageDetails"][0]
+        require(
+            not rules or detail.get("imageTags"), "A protected live digest is untagged"
+        )
+
+
 def read_checks(aws):
     """All are metadata GETs. Any denial stops; no fallback identity or write."""
-    import httpx
-    from botocore.auth import SigV4Auth
-    from botocore.awsrequest import AWSRequest
-
-    for path in (
-        "/v1/organization/projects/default",
-        "/v1/models/anthropic.claude-opus-5-5",
-    ):
-        url = "https://bedrock-mantle.us-east-1.api.aws" + path
-        req = AWSRequest(method="GET", url=url)
-        SigV4Auth(
-            aws.get_credentials().get_frozen_credentials(), "bedrock-mantle", REGION
-        ).add_auth(req)
-        with httpx.Client(timeout=15) as client:
-            result = client.get(url, headers=dict(req.headers))
-        require(
-            result.status_code == 200,
-            f"Mantle metadata prerequisite failed: {path} HTTP {result.status_code}",
-        )
-    limits = aws.client("lambda").get_account_settings()["AccountLimit"]
+    model_id = "amazon.nova-lite-v1:0"
+    bedrock = aws.client("bedrock")
+    model = bedrock.get_foundation_model(modelIdentifier=model_id)["modelDetails"]
     require(
-        limits["UnreservedConcurrentExecutions"] >= 101,
-        "Need room for concurrency 1 while retaining 100 unreserved executions",
+        model.get("modelId") == model_id
+        and model.get("modelArn")
+        == "arn:aws:bedrock:us-east-1::foundation-model/" + model_id,
+        "Unexpected Nova model identity",
     )
-    # Legacy Bedrock quotas must not be mistaken for the newer Mantle model's limits.
+    require(
+        "ON_DEMAND" in model.get("inferenceTypesSupported", []),
+        "Nova on-demand support required",
+    )
+    require(
+        model.get("modelLifecycle", {}).get("status") == "ACTIVE",
+        "Nova model is not active",
+    )
+    availability = bedrock.get_foundation_model_availability(modelId=model_id)
+    require(
+        availability.get("regionAvailability") == "AVAILABLE"
+        and availability.get("authorizationStatus") == "AUTHORIZED"
+        and availability.get("entitlementAvailability") == "AVAILABLE",
+        "Nova regional/account access not verified; inspect model availability before release",
+    )
+    agreement = availability.get("agreementAvailability", {})
+    require(
+        agreement.get("status") == "AVAILABLE",
+        "Model agreement not verified",
+    )
+    check_capacity(aws)
+    # Pin in-region, base Nova Lite quotas; no cross-region/custom/batch substitution.
     quotas = [
         q
         for page in aws.client("service-quotas")
@@ -230,30 +308,21 @@ def read_checks(aws):
         .paginate(ServiceCode="bedrock")
         for q in page["Quotas"]
     ]
-    relevant = [
-        q
-        for q in quotas
-        if any(
-            word in q["QuotaName"].lower()
-            for word in ("opus 5.5", "opus-5-5", "mantle")
-        )
-    ]
+    required_quotas = {"L-70423BF8", "L-E386A278"}
+    relevant = {
+        q["QuotaCode"]: q["Value"] for q in quotas if q["QuotaCode"] in required_quotas
+    }
     require(
-        relevant and all(q["Value"] > 0 for q in relevant),
-        "No positive applicable Mantle/Opus 5.5 quota identified; obtain exact account quota confirmation",
+        set(relevant) == required_quotas and all(v > 0 for v in relevant.values()),
+        "Positive Nova Lite on-demand token/request quotas must be verified",
     )
     email = os.environ.get("PEACH_BUDGET_EMAIL", "")
     require(email, "Supply the intended budget email privately")
     budgets = aws.client("budgets")
     valid = False
     for page in budgets.get_paginator("describe_budgets").paginate(AccountId=ACCOUNT):
-        for budget in page["Budgets"]:
-            if (
-                budget.get("TimeUnit") != "MONTHLY"
-                or budget.get("BudgetType") != "COST"
-                or budget.get("BudgetLimit", {}).get("Unit") != "USD"
-                or float(budget.get("BudgetLimit", {}).get("Amount", 0)) != 5
-            ):
+        for budget in page.get("Budgets", []):
+            if not matching_budget(budget):
                 continue
             notices = budgets.describe_notifications_for_budget(
                 AccountId=ACCOUNT, BudgetName=budget["BudgetName"]
@@ -261,14 +330,16 @@ def read_checks(aws):
             for notice in notices:
                 absolute = (
                     notice.get("ThresholdType") == "ABSOLUTE_VALUE"
-                    and notice["Threshold"] <= 5
+                    and 0 < notice["Threshold"] <= 5
                 )
                 percent = (
                     notice.get("ThresholdType") == "PERCENTAGE"
-                    and notice["Threshold"] <= 100
+                    and 0 < notice["Threshold"] <= 100
                 )
-                if notice.get("NotificationType") != "ACTUAL" or not (
-                    absolute or percent
+                if (
+                    notice.get("NotificationType") != "ACTUAL"
+                    or notice.get("ComparisonOperator") != "GREATER_THAN"
+                    or not (absolute or percent)
                 ):
                     continue
                 people = budgets.describe_subscribers_for_notification(
@@ -464,8 +535,6 @@ def local_verify(args):
 
 def preserve(args, aws):
     """Archive browser assets and pinned image identities through read-only APIs."""
-    from botocore.exceptions import ClientError
-
     src = source(args.commit)
     require(
         not state_file(args).exists(),
@@ -531,29 +600,7 @@ def preserve(args, aws):
             for name in ("peach-report-builder", "peach-report-mailer")
         }
     )
-    ecr = aws.client("ecr")
-    try:
-        rules = json.loads(
-            ecr.get_lifecycle_policy(repositoryName="peach-backend")[
-                "lifecyclePolicyText"
-            ]
-        )["rules"]
-    except ClientError as error:
-        if error.response["Error"]["Code"] != "LifecyclePolicyNotFoundException":
-            raise
-        rules = []
-    require(
-        all(r["selection"]["tagStatus"] == "untagged" for r in rules),
-        "Lifecycle may expire tagged rollback/report images; administrator must protect them",
-    )
-    for uri in images.values():
-        digest = uri.split("@")[-1]
-        detail = ecr.describe_images(
-            repositoryName="peach-backend", imageIds=[{"imageDigest": digest}]
-        )["imageDetails"][0]
-        require(
-            not rules or detail.get("imageTags"), "A protected live digest is untagged"
-        )
+    check_image_retention(aws, images)
     data = {
         "source": src,
         "account": ACCOUNT,
@@ -601,8 +648,9 @@ def check_snapshot(aws, identifier):
         value["DBClusterIdentifier"] == "peach-db"
         and value["Status"] == "available"
         and value["SnapshotType"] == "manual"
+        and value.get("StorageEncrypted") is True
         and timedelta(0) <= age < timedelta(hours=24),
-        "Snapshot must be available, manual, <24h old and belong to peach-db",
+        "Snapshot must be encrypted, available, manual, <24h old and belong to peach-db",
     )
 
 
@@ -642,7 +690,12 @@ def execute_disabled(args, aws, state):
         ),
         "Unexpected AI resource removal/change",
     )
-    current = cf.describe_stacks(StackName="peach-ai")["Stacks"][0]["StackStatus"]
+    current_stack = cf.describe_stacks(StackName="peach-ai")["Stacks"][0]
+    require(
+        not current_stack.get("RoleARN"),
+        "Unreviewed CloudFormation service role: peach-ai",
+    )
+    current = current_stack["StackStatus"]
     cf.execute_change_set(StackName="peach-ai", ChangeSetName=args.change_set_id)
     cf.get_waiter(
         "stack_create_complete"
@@ -730,9 +783,7 @@ def parser_config(aws):
         not cfg.get("VpcConfig", {}).get("VpcId") and "DATABASE_URL" not in env,
         "Parser isolation mismatch",
     )
-    require(
-        env["PARSER_MODEL"] == "anthropic.claude-opus-5-5", "Required model changed"
-    )
+    require(env["PARSER_MODEL"] == "amazon.nova-lite-v1:0", "Required model changed")
     require(
         cfg["Timeout"] == 30 and cfg["MemorySize"] == 512, "Unexpected parser limits"
     )
@@ -740,8 +791,8 @@ def parser_config(aws):
         FunctionName="peach-agenda-parser"
     )
     require(
-        concurrency.get("ReservedConcurrentExecutions") == 1,
-        "Parser concurrency must be 1",
+        concurrency.get("ReservedConcurrentExecutions") is None,
+        "Lab parser must use shared concurrency without a reservation",
     )
     return cfg
 
@@ -807,7 +858,7 @@ def smoke(args, aws, paid=False):
     body = result.json()
     ParsedAgenda.model_validate(body["agenda"])
     require(
-        body["model"] == "anthropic.claude-opus-5-5"
+        body["model"] == "amazon.nova-lite-v1:0"
         and body["prompt_version"] == "agenda-v1",
         "Unexpected model/prompt result",
     )
@@ -824,6 +875,16 @@ def smoke(args, aws, paid=False):
         },
     )
     print("One actual paid smoke recorded; not a substitute for five deployed UI cases")
+
+
+def check_smoke_receipt(receipt, commit, state, cfg):
+    """Bind smoke to unchanged artifacts, without forcing another billable call by age."""
+    require(
+        receipt["commit"] == commit
+        and receipt["image"] == state["new_image"]
+        and receipt["parser_modified"] == cfg["LastModified"],
+        "An actual functional smoke on this exact parser configuration is required",
+    )
 
 
 def main():
@@ -887,6 +948,10 @@ def main():
         smoke(args, aws, paid=args.phase == "paid-smoke")
         return
     state = load_state(args)
+    # A persisted CF service role can be reused without a new PassRole check.
+    # This reviewed path deliberately uses the scoped operator credentials only.
+    for name in ("peach-backend", "peach-migrations", "peach-frontend"):
+        stack(aws, name)
     env = deployment_environment(aws, args.commit)
     if args.phase == "backend":
         read_checks(aws)
@@ -903,6 +968,7 @@ def main():
                 "Private DB revision differs from approval",
             )
         verify_archive(args, state, aws)
+        check_image_retention(aws, state["images"])
         check_snapshot(aws, os.environ.get("PEACH_RELEASE_SNAPSHOT_ID", ""))
         require(
             os.environ.get("PEACH_APPROVED_MIGRATION_SHA256")
@@ -965,15 +1031,7 @@ def main():
         require(state["phase"] == "backend", "Backend release not verified")
         receipt = json.loads((args.directory / "paid-smoke.json").read_text())
         cfg = parser_config(aws)
-        require(
-            receipt["commit"] == args.commit
-            and receipt["image"] == state["new_image"]
-            and receipt["parser_modified"] == cfg["LastModified"]
-            and timedelta(0)
-            <= now() - datetime.fromisoformat(receipt["at"])
-            < timedelta(minutes=15),
-            "A fresh actual functional smoke on this exact parser configuration is required",
-        )
+        check_smoke_receipt(receipt, args.commit, state, cfg)
         require(
             cfg["Environment"]["Variables"]["PARSER_ENABLED"] == "true",
             "Parser must be ready",

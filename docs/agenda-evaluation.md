@@ -1,8 +1,11 @@
-# Agenda evaluation — NOT RUN
+# Agenda evaluation — five deployed cases NOT RUN
 
-All result cells below are intentionally pending. No live JSON, model performance,
+One separately approved minimal Nova Converse smoke returned 4 input / 21 output
+tokens, 0.869 seconds and $0.00000528 estimated cost, with no retries. It is not an
+agenda parse, deployed UI test, or CloudWatch parser evidence. All result cells
+below are intentionally pending. No live JSON, model performance,
 CloudWatch logs or deployed recording has been collected. Mock tests prove code
-behavior, not Claude's resistance to prompt injection.
+behavior, not Nova's resistance to prompt injection.
 
 ## Reproducible deployed workflow
 
@@ -35,8 +38,12 @@ assuming the prompt succeeded. No tools with side effects are exposed.
 | 4 | Shopping list above | NOT RUN | pending | pending | pending | pending | pending | pending |
 | 5 | Injection above | NOT RUN | pending | pending | pending | pending | pending | pending |
 
-Optional Haiku 5.5 comparison: verify model access and pricing first; repeat the
-same table with its model ID recorded. No automatic cheaper-model substitution.
+Current evaluated model must be amazon.nova-lite-v1:0 (Bedrock Runtime Converse).
+The assignment required Claude Opus 5.5; AWS reported it unavailable for the account
+with zero Mantle quotas. Nova substitution is a documented deviation, NOT instructor
+approved. Keep the five evidence categories and report actual Nova model/usage in
+all results. Optional Claude comparisons require separate access/call approval;
+none are implied by this implementation or by mocked tests.
 
 ## Written-answer drafts
 
@@ -70,3 +77,9 @@ same table with its model ID recorded. No automatic cheaper-model substitution.
 5. Short final answers to the four questions above, replacing pending measurements.
 
 Never include JWTs, AWS credentials, private emails, or production database URLs.
+
+
+A capture skeleton is in [agenda-submission-template.json](agenda-submission-template.json).
+Copy it into ignored reports-local/agenda/ before entering actual results. Null
+actual values are intentional: the evidence helper rejects them. Never replace
+pending values with mock output. See [current release audit](agenda-release-audit.md).

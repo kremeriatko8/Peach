@@ -1,172 +1,125 @@
-# Paste an agenda — implementation and release guide
+> **Current October 18 readiness:** [release audit](agenda-release-audit.md)
+> supersedes historical access/build/test observations below. No deployment has occurred.
+> The single approved minimal Nova smoke succeeded; agenda tool use and the five
+> deployed test cases remain unverified. No additional inference is authorized here.
 
-> October 17 update: see [guarded release procedure](agenda-guarded-release.md)
-> for resolved Docker/PostgreSQL 17 checks, current blockers, and automated gates.
+# Paste an agenda — Nova Lite implementation and release guide
 
-Status: local implementation. No live inference, deployment, production migration,
-budget mutation, or deployed UI verification has been performed by this work.
+Current local decision, October 18, 2026: `amazon.nova-lite-v1:0`, us-east-1,
+non-streaming Bedrock Runtime Converse. No model calls or deployment were performed
+for this adaptation. This substitutes the assignment's required Claude Opus 5.5;
+it is a documented deviation, **not an instructor-approved substitution**.
 
-## Configuration and local commands
+## Configuration
 
-Install with `cd backend && uv sync --frozen`. `anthropic[bedrock]` is locked in
-`uv.lock`. No AWS credentials belong in frontend configuration. Backend Settings
-reads `.env` relative to the command working directory; export parser settings
-explicitly or supply backend/.env locally. Do not copy production DB URLs to tests.
+Install locked dependencies with `cd backend && uv sync --frozen`. The runtime
+uses existing boto3, explicit SigV4 role/profile credentials and the in-region
+endpoint. The unused Anthropic SDK was removed from pyproject/lock; other locked
+versions were preserved. Never pass AWS credentials to the frontend.
 
-- `PARSER_MODEL`: defaults to `anthropic.claude-opus-5-5`.
-- `PARSER_ENABLED`: false by default; only the HTTP adapter uses this kill switch.
-- `PARSER_MAX_TOKENS`: 2048 default, maximum 4096 per attempt.
-- `PARSER_REQUESTS_PER_MINUTE`: 3 per subject per warm execution environment.
-- `PARSER_INPUT_USD_PER_MILLION`, `PARSER_OUTPUT_USD_PER_MILLION`: positive verified
-  regional rates. Missing pricing disables HTTP inference; never use fake rates.
-- `COGNITO_AUTHORITY`, `COGNITO_CLIENT_ID`, `COGNITO_JWKS_JSON`: existing public
-  verifier configuration. Signing-key rotation needs redeployment.
-- `NEXT_PUBLIC_PARSER_URL`: local frontend parser URL.
-- `PARSER_URL`: parser URL injected as NEXT_PUBLIC_PARSER_URL by frontend deployment.
+- PARSER_MODEL defaults to amazon.nova-lite-v1:0. Reviewed release rejects other models.
+- PARSER_ENABLED=false initially. Changing it requires separate activation approval.
+- PARSER_MAX_TOKENS=2048; maximum 4096; one initial call plus at most one repair.
+- SDK automatic retries are disabled (total_max_attempts=1). Per-call connect/read
+  timeout budgets total at most 10 seconds, reduced to the remaining parser deadline.
+- PARSER_REQUESTS_PER_MINUTE=3 per subject/warm instance; no reserved concurrency for this low-traffic lab.
+- PARSER_INPUT_USD_PER_MILLION=0.06 and PARSER_OUTPUT_USD_PER_MILLION=0.24 are the
+  standard us-east-1 catalog rates verified October 18 (publication October 16).
+  Set them explicitly after price review. Missing pricing disables HTTP parsing.
+- Existing Cognito issuer/client/trusted public JWKS configuration is reused.
+- PARSER_URL is injected into the deployed frontend; no browser provider access.
 
-After explicit paid-call authorization only:
+Only after explicit approval of the specific paid request:
+`PEACH_APPROVE_PAID_INFERENCE=yes make llm-hello` or
+`PEACH_APPROVE_PAID_INFERENCE=yes make parse TEXT="..."`.
+CLI calls do not replace deployed-frontend submission evidence. Disabled HTTP mode
+is separate from these explicitly approved CLI calls.
 
-```sh
-make llm-hello
-make parse TEXT="Pricing sync; Олена reviews Pro pricing for 15 minutes"
-# Explicit reproducible context:
-cd backend
-TEXT="next Tuesday after lunch" uv run python -m app.ai.cli parse --today 2026-10-12 --tz Europe/Kyiv
-```
+## Parser and API invariants
 
-These commands intentionally use the laptop AWS credential chain and incur model
-cost. They do not enable the HTTP parser or write to a database. TEXT is exported
-by make, not expanded as shell source. Avoid entering private text into history.
+The record_agenda tool schema is derived from ParsedAgenda, references are inlined,
+annotations removed, and only type/properties/required occur at the root. Pydantic
+still validates the complete original contract (dates, nullability and numeric
+bounds), with item-count limits. Exactly one named tool call and tool_use stop
+reason are required. Validation errors are returned through Converse toolResult
+for one repair; every observed attempt's tokens are summed. Failed/timeout calls
+may incur unobserved usage, so logs flag incomplete usage rather than claiming free calls.
 
-## Data and review behavior
+JWT verification precedes inference, input is capped at 10,000 characters, and all
+source text is untrusted. The parser has no DB/VPC access or executable external
+tools. Browser review/save still uses the ownership-validated existing API and
+stores the original suggestion, model ID and prompt version separately from the
+corrected agenda. The HTTP/DB/frontend contract is unchanged; no extra migration
+is required for the provider change. Existing 0005 agenda deployment remains separately gated.
 
-GET/PUT `/api/v1/meetings/{id}/agenda` use existing verified-sub ownership.
-GET returns null for an owned meeting with no agenda; another user's meeting is
-404. PUT validates nested fields and optional reviewed meeting updates and commits
-atomically. A meeting row lock serializes agenda upserts. Deleting a meeting
-cascades to its agenda. Existing meeting/task columns and reporting are unchanged.
+## IAM changes before any release (not applied)
 
-One current agenda stores item/action arrays, language, and nullable ai_suggestion
-with original ParsedAgenda, model, prompt_version. Ordinary edits retain original
-provenance. A new accepted parse replaces the current proposal on Save. Source
-text is not persisted. Provenance passes through the browser and is not a signed
-provider receipt. Treat it as research data, not a security audit trail.
+1. Update PeachAgendaReadiness (or the incremental read-only proposal): exact-model
+   bedrock:GetFoundationModel on the Nova foundation ARN; GetFoundationModelAvailability
+   as a separate read on Resource="*", conditioned to us-east-1 (API lacks resource scope).
+2. Update PeachAgendaParserBoundary's default version: replace Mantle inference
+   with bedrock:InvokeModel on that exact ARN. Preserve its own-log-write grants.
+   The existing boundary ARN and mandatory-boundary provisioning constraints remain.
+3. The future infra/ai.yml execution-role inline policy grants the same exact
+   InvokeModel permission. No live role is updated by this local work.
+4. Optional laptop policy gets the same scoped permission, but remains unattached
+   until separately approved. Runtime and readiness do not require operator inference.
 
-The form keeps uncertain dates blank and requires an offset-bearing timestamp
-before optional meeting updates. Parsed names never resolve account access.
-Agenda action items do not automatically create tasks. Per-field AI markers clear
-when edited. Parse replaces the unsaved editor draft; saved data changes only on
-Save. Cancel/close/account changes abort browser work and suppress late results.
+No bedrock:InvokeModelWithResponseStream, cross-region profile, Marketplace
+subscription, new project, provisioned capacity, NAT or VPC endpoint is requested.
+Operator release/provisioning/IAM-audit policies otherwise retain their exact scopes.
+See infra/iam/agenda/ADMIN-SESSION.md. Live AWS policies still reflect Claude until
+an administrator explicitly updates only the changed policies.
 
-## Offline verification
+## Ordered release gates
 
-Use a disposable local PostgreSQL database ending `_test`; never production.
-Run backend pytest, scripts/tests, Ruff, frontend tests/lint/format/types, and
-`make ai-validate` where cfn-lint is installed. Backend CI continues normal
-validation without AWS credentials. Infrastructure tests reject VPC/DB/network
-resources in the AI template. Paid calls are not part of test execution.
+1. Confirm account 968053399627/us-east-1, metadata access and Nova regional/account
+   availability without inference. These reads were previously denied; positive
+   quotas alone do not establish authorization. If Amazon's availability response
+   differs from the guarded predicate, STOP for review, never assume entitlement.
+2. Verify in-region quotas L-70423BF8 (TPM) and L-E386A278 (RPM), currently observed
+   4M/200 respectively. Do not substitute cross-region, custom-model or batch quotas.
+3. Shared Lambda quota 10 is sufficient for the serial demo; no increase is needed.
+   Resolve unsafe shared ECR 'any, last 3' expiry and the absent $5 budget.
+   No changes to these resources are authorized by this document.
+4. Review/commit local changes only after authorization; retain the completed
+   relevant test results. Full local-verify is optional when comprehensive repeat
+   validation is warranted and includes disposable migrations requiring approval.
+5. Follow the guarded release guide: preserve all baseline API/runner/report images
+   and frontend objects; separately approve fresh snapshot, guarded 0005 release,
+   disabled parser change-set creation/execution, authentication/disabled smoke,
+   activation, one paid functional smoke, and finally frontend publication.
 
-## Approval gates and deployment commands (NOT EXECUTED)
+AI parameter JSON must use ImageUri=verified backend digest, Architecture=arm64,
+ParserModel=amazon.nova-lite-v1:0, ParserEnabled=false, exact Nova foundation ARN as
+InferenceResourceArn, verified rates and existing Cognito/frontend values. Budget
+creation uses infra/budget.yml with the explicitly reviewed email and remains a
+separate approval. Activation uses an UPDATE change set preserving every deployed
+parameter except ParserEnabled; do not enable in the initial parameter file.
 
-1. Review code/tests and final schema fingerprint. Check live baseline only after
-   AWS access is approved: existing stack identity, networking, revision, image
-   digests, report configuration and rollback artifacts. No automatic role expansion.
-2. Verify account access to the exact model in us-east-1, Mantle tool support,
-   quotas, current regional pricing and minimum scoped Mantle IAM. SDK uses the
-   Lambda role credential chain; do not inject bearer API keys. Required runtime
-   action is `bedrock-mantle:CreateInference` on the verified existing default Mantle project ARN, with a model condition.
-   Do not guess its ARN or add wildcard/project permissions without review.
-3. Review/create account-wide budget separately. Confirm email and no duplicate
-   budget. Billing permissions: budgets:ViewBudget and budgets:ModifyBudget for
-   an explicitly approved create/update as applicable to the deployer.
-   Review effective CloudFormation execution permissions before deploying.
+## Evidence and documentation
 
-   ```sh
-   aws cloudformation deploy --region us-east-1 --stack-name peach-budget \
-     --template-file infra/budget.yml --parameter-overrides NotificationEmail=REVIEWED_EMAIL
-   ```
+See docs/agenda-evaluation.md for the five actual deployed cases, recording <=45s,
+CloudWatch usage line and written answers. No results or instructor approval are
+fabricated. ADR 0006 records the deviation and observed Claude access/zero-quota
+blockers. The diagram preserves Browser→Parser→Bedrock parse and Browser→API→Aurora save.
 
-4. Approve controlled backend schema release: fingerprint approval and verified
-   fresh manual snapshot as documented in deployment.md. Preserve credentials,
-   existing RDS and reporting resources. Backend release publishes a reviewed
-   digest containing all handlers, then private runner verifies 0005 before API
-   update. Do not push main merely to publish an image; main triggers production.
-   Use the existing reviewed release process only with explicit approval.
-5. Prepare AI parameter JSON entries with ParameterKey/ParameterValue for:
-   ImageUri (exact same reviewed backend digest), Architecture, public Cognito
-   settings, FrontendOrigins (exact HTTPS origin), InferenceResourceArn,
-   InputUsdPerMillion, OutputUsdPerMillion, ParserEnabled=false, optional
-   ProjectName/ParserModel. Keep the parser disabled initially.
+Illustrative, not measured: 1,000 input + 300 output tokens costs $0.000132;
+~2,600 such parses/month costs $0.3432 before repairs, Lambda, logs, storage and
+existing application costs. A $5 budget is a delayed alert, not a cap. Cancelled
+browser requests may still bill. Rollback keeps additive schema 0005 and reporting
+untouched; disable parsing, restore approved baseline images/assets as needed.
 
-   ```sh
-   PEACH_APPROVE_AI_DEPLOY=yes AI_PARAMETERS_FILE=/private/tmp/ai-parameters.json make ai-prepare-deploy
-   aws cloudformation describe-change-set --region us-east-1 --stack-name peach-ai --change-set-name agenda-parser-reviewed
-   # Separate approval: execute the exact reviewed change set
-   aws cloudformation execute-change-set --region us-east-1 --stack-name peach-ai --change-set-name agenda-parser-reviewed
-   ```
+References:
+- https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-lite.html
+- https://docs.aws.amazon.com/nova/latest/userguide/tool-use-definition.html
+- https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html
+- https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrock/current/us-east-1/index.json
 
-   The helper creates a change set only. For an existing stack explicitly set
-   AI_CHANGE_SET_TYPE=UPDATE and a unique AI_CHANGE_SET_NAME. Deployer needs scoped
-   CloudFormation, Lambda/Function URL permissions, IAM role creation/policies/
-   PassRole, logs and existing ECR image access. Verify account concurrency permits
-   reserved concurrency 1. No VPC, RDS, Secrets Manager or reporting permissions
-   belong in the parser role. Template ARN scope is intentionally fail-closed until
-   a supported Mantle inference resource is verified.
-6. After separate paid-call/activation approval, create/review an UPDATE change set
-   with ParserEnabled=true and otherwise preserved parameters. Execute it, then
-   verify 401 without a token and 413 before inference; run one approved sample.
-7. Set PARSER_URL to reviewed HTTPS parser URL and deploy static frontend through
-   the existing manual process. Verify API + parser CORS origins and Cognito flow.
-8. Execute the five deployed cases and record actual evidence. Keep reporting
-   schedule, queues, objects, roles and pinned report images unchanged.
 
-## Rollback and risks
-
-Disable parser with an approved CloudFormation parameter update; retain stack and
-logs for investigation. Revert frontend/API to reviewed compatible image/assets,
-preserving schema marker and 0005. Never downgrade/drop agendas or meetings as a
-routine rollback. No destructive stack commands are needed.
-
-The 30 s Lambda budget allows two <=10 s calls with no automatic SDK retries.
-Opus may exceed that budget; measure actual latency before activation. Inference
-can still be billed when a response is lost. Failed-call logs mark usage incomplete;
-zero observed tokens is not proof of no charge. CORS is not authentication.
-Warm-instance rate limits reset on cold starts and are not globally enforceable.
-Budget is delayed alerting, not a hard cap. No paid WAF, NAT, provisioned throughput,
-interface endpoint or additional database is introduced. CloudWatch has seven-day
-retention. Do not enable paid CloudTrail inference data events just for evidence.
-
-Cost formula: `(input_tokens * input_rate + output_tokens * output_rate) / 1e6`,
-summed over both attempts. Record the model/rate/date used. 20 organizations × 30
-weekly × 52/12 = about 2,600 parses/month. Multiply observed mean cost by 2,600;
-include Lambda/log costs separately. The assignment's $7.30/month endpoint equals
-$0.00280769 per parse at that volume; that endpoint cost would be in addition to
-inference, not a substitute for it.
-
-Public IAM reference checked during implementation:
-https://docs.aws.amazon.com/service-authorization/latest/reference/list_bedrock-mantle.html
-CreateInference scopes to project resources, with bedrock-mantle:Model conditions.
-The current client uses project/default, and the template intentionally permits only
-that ARN. Custom projects require an explicitly reviewed client/header change.
-Provide the existing/default project ARN after approved account inspection. Do not
-create a paid project/service or broaden to all resources merely to bypass denial.
-
-Approved activation command (NOT EXECUTED): prepare a full reviewed parameter file
-preserving the deployed values and setting ParserEnabled=true, then:
-
-```sh
-aws cloudformation create-change-set --region us-east-1 --stack-name peach-ai \
-  --change-set-name agenda-parser-activation --change-set-type UPDATE \
-  --use-previous-template --parameters file:///private/tmp/ai-activation-parameters.json \
-  --capabilities CAPABILITY_IAM
-aws cloudformation describe-change-set --region us-east-1 --stack-name peach-ai \
-  --change-set-name agenda-parser-activation
-# Execute only after explicit review/approval:
-aws cloudformation execute-change-set --region us-east-1 --stack-name peach-ai \
-  --change-set-name agenda-parser-activation
-```
-
-Default Next.js/Turbopack build encountered an environment worker-port restriction
-in this session. Static export was verified with `NEXT_OUTPUT=export pnpm exec next
-build --webpack`. For an approved frontend deployment use
-`FRONTEND_BUILD_ENGINE=webpack make deploy-frontend`; default remains Turbopack.
+IAM resource-scope correction verified against the public Bedrock authorization
+catalog: GetFoundationModel supports the exact foundation-model ARN, but
+GetFoundationModelAvailability has no resource-level scope. Its separate statement
+uses Resource="*" with aws:RequestedRegion=us-east-1. This grants only availability
+metadata, never inference. Runtime/boundary/laptop InvokeModel remains exact-ARN
+scoped; no model wildcard inference or streaming permission is granted.

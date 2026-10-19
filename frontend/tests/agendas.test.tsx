@@ -15,12 +15,12 @@ const result: ParseResult = {
     action_items: [],
     language: "uk",
   },
-  model: "anthropic.claude-opus-5-5",
+  model: "amazon.nova-lite-v1:0",
   prompt_version: "agenda-v1",
   input_tokens: 100,
   output_tokens: 50,
   latency_ms: 1500,
-  estimated_cost_usd: 0.002,
+  estimated_cost_usd: 0.000018,
 };
 const saved: SavedAgenda = {
   id: "a",
@@ -85,6 +85,8 @@ describe("Agendas", () => {
     const payload = put.mock.calls[0][1];
     expect(payload.items[0].topic).toBe("Corrected");
     expect(payload.ai_suggestion?.agenda.items[0].topic).toBe("Pricing");
+    expect(payload.ai_suggestion?.model).toBe("amazon.nova-lite-v1:0");
+    expect(payload.ai_suggestion?.prompt_version).toBe("agenda-v1");
     expect(payload.meeting).toBeUndefined();
   });
   it("cancels and discards a late parser response", async () => {

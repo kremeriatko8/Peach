@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     cognito_client_id: str = ""
     cognito_jwks_json: str = ""
 
-    parser_model: str = "anthropic.claude-opus-5-5"
+    parser_model: str = "amazon.nova-lite-v1:0"
     parser_max_tokens: int = Field(default=2048, ge=128, le=4096)
     parser_enabled: bool = False
     parser_requests_per_minute: int = Field(default=3, ge=1, le=10)

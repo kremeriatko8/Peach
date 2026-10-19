@@ -7,6 +7,7 @@ Parameters:
   BudgetName:
     Type: String
     Default: peach-monthly-cost-alert
+    AllowedValues: [peach-monthly-cost-alert]
 Resources:
   MonthlyBudget:
     Type: AWS::Budgets::Budget
@@ -18,6 +19,7 @@ Resources:
         BudgetLimit: {Amount: 5, Unit: USD}
         CostTypes:
           UseBlended: false
+          UseAmortized: false
           IncludeCredit: false
           IncludeRefund: false
       NotificationsWithSubscribers:

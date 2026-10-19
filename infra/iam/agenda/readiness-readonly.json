@@ -2,13 +2,25 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "MantleMetadataOnly",
+      "Sid": "NovaModelMetadataOnly",
       "Effect": "Allow",
       "Action": [
-        "bedrock-mantle:GetProject",
-        "bedrock-mantle:GetModel"
+        "bedrock:GetFoundationModel"
       ],
-      "Resource": "arn:aws:bedrock-mantle:us-east-1:968053399627:project/default"
+      "Resource": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0"
+    },
+    {
+      "Sid": "RegionalModelAvailabilityRead",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:GetFoundationModelAvailability"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
     },
     {
       "Sid": "BudgetReadOnly",

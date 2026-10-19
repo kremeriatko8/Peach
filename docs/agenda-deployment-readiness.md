@@ -1,3 +1,14 @@
+> **Current October 18 readiness:** [release audit](agenda-release-audit.md)
+> supersedes historical access/build/test observations below. No deployment has occurred.
+> The single approved minimal Nova smoke succeeded; agenda tool use and the five
+> deployed test cases remain unverified. No additional inference is authorized here.
+
+> **October 18 Nova adaptation:** Provider/model instructions below are historical.
+> Current implementation uses amazon.nova-lite-v1:0 via Runtime Converse; see
+> [current release guide](agenda-ai.md) and [ADR 0006](adr/0006-llm-agenda-parsing.md).
+> This deviation from required Claude is not instructor approved. Existing infrastructure
+> blockers remain; historical model checks/results are not Nova availability evidence.
+
 # Agenda lab: reviewed deployment handoff
 
 > October 17 update: see [guarded release procedure](agenda-guarded-release.md)
@@ -36,7 +47,7 @@ was run, and nothing was pushed. Private sanitized AWS observations are in ignor
 - Added explicit `FRONTEND_BUILD_ENGINE=webpack` deployment option for the locally
   verified builder; default Turbopack behavior is preserved.
 - One repair maximum, SDK automatic retries disabled, 10,000-character input,
-  bounded output, concurrency 1, three requests/minute/subject per warm instance.
+  bounded output, shared concurrency, three requests/minute/subject per warm instance.
   This is burst reduction, not a globally durable monthly spend cap. HTTP timeout
   phases and platform deadline are not a guarantee against charge on cancellation.
 
@@ -95,7 +106,7 @@ results or narrowly grant these reads; AdministratorAccess is unnecessary.
 | Existing migration stack | Update runner image only; existing VPC/role/DB configuration preserved |
 | Existing Aurora schema | Add `agendas` via 0005; no existing task/meeting columns/rows rewritten |
 | Existing backend stack | Update API image and successful schema marker; no RDS replacement or recreation |
-| Separate AI stack | IAM role + inline scoped policy, seven-day log group, 512 MB/30 s Lambda outside VPC, concurrency 1, Function URL and two invoke permissions |
+| Separate AI stack | IAM role + inline scoped policy, seven-day log group, 512 MB/30 s Lambda outside VPC, shared concurrency, Function URL and two invoke permissions |
 | Separate budget stack | Optional account-wide monthly USD 5 budget and email notification after duplicate/email review |
 | Existing frontend | Rebuild/upload static files with parser URL; CloudFront invalidation; no hosting redesign |
 | Reporting / Cognito | No template, image, schedule, identity-provider or policy changes |
@@ -112,7 +123,7 @@ production impact. Existing task/meeting/report tests pass on a disposable DB.
    through an already approved read-only private connection or trusted release
    evidence. Never invoke the migration runner to discover revision. Confirm AI
    stack create/update type, effective IAM, model access, quota for reserved
-   concurrency 1 (Lambda also needs unreserved capacity), budget email and rates.
+   shared concurrency availability, budget email and rates.
    Validate ARM64 Linux image and PostgreSQL 17 compatibility before production.
 2. **Backup approval:** preserve current image digests/frontend rollback assets and
    reporting baseline. Create a new manual Aurora snapshot with the existing
@@ -164,7 +175,7 @@ Required parser values: public `COGNITO_AUTHORITY`, `COGNITO_CLIENT_ID`,
 `COGNITO_JWKS_JSON`; `PARSER_MODEL`; verified positive
 `PARSER_INPUT_USD_PER_MILLION` / `PARSER_OUTPUT_USD_PER_MILLION`;
 `PARSER_ENABLED` (false until approved), token/request bounds supplied by template.
-Existing template uses ARM64, 512 MB, 30 seconds, reserved concurrency 1. Deployment
+Existing template uses ARM64, 512 MB, 30 seconds, no reserved concurrency for the low-traffic lab. Deployment
 helper validates initial disabled state and 4 KB environment limit. Existing DB
 connection/settings are reused by the API only. Frontend needs `PARSER_URL` at
 build time; local frontend uses `NEXT_PUBLIC_PARSER_URL`. Credentials never enter
@@ -232,3 +243,10 @@ Host uv is currently available at `/private/tmp/peach-agenda-tools/bin/uv`; add 
 bin directory to PATH or install the normal project tool before approved Make
 commands. Temporary tools are not committed. Backend venv and frontend dependencies
 are ignored. The disposable PostgreSQL instance is stopped after verification.
+
+## Complete administrative-session policy bundle
+
+See [one-session IAM bundle](../infra/iam/agenda/ADMIN-SESSION.md) for the complete scoped operator policies, parser runtime boundary,
+verified permission evidence, validation limits and a single Console checklist.
+It supersedes the earlier incremental read-only attachment recommendation.
+No AWS policy was attached.

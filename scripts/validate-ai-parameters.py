@@ -17,11 +17,13 @@ def validate(params):
         raise ValueError("Use exact HTTPS frontend origins")
     if params.get("ParserEnabled", "false") != "false":
         raise ValueError("Initial deployment must keep parser disabled")
+    if params.get("ParserModel", "amazon.nova-lite-v1:0") != "amazon.nova-lite-v1:0":
+        raise ValueError("Only the reviewed Nova Lite model is permitted")
     if not re.fullmatch(
-        r"arn:aws:bedrock-mantle:us-east-1:[0-9]{12}:project/default",
+        r"arn:aws:bedrock:us-east-1::foundation-model/amazon\.nova-lite-v1:0",
         params.get("InferenceResourceArn", ""),
     ):
-        raise ValueError("Use the existing default Mantle project ARN")
+        raise ValueError("Use the exact in-region Nova Lite model ARN")
     for name in ("InputUsdPerMillion", "OutputUsdPerMillion"):
         rate = float(params.get(name, "nan"))
         if not math.isfinite(rate) or rate <= 0:
@@ -41,7 +43,7 @@ def validate(params):
         "COGNITO_AUTHORITY": params["CognitoAuthority"],
         "COGNITO_CLIENT_ID": params["CognitoClientId"],
         "COGNITO_JWKS_JSON": params["CognitoJwksJson"],
-        "PARSER_MODEL": params.get("ParserModel", "anthropic.claude-opus-5-5"),
+        "PARSER_MODEL": params.get("ParserModel", "amazon.nova-lite-v1:0"),
         "PARSER_ENABLED": "false",
         "PARSER_MAX_TOKENS": "2048",
         "PARSER_REQUESTS_PER_MINUTE": "3",
@@ -63,7 +65,7 @@ def main():
         validate(params)
     except (ValueError, KeyError, TypeError, IndexError):
         sys.exit(
-            "Invalid AI parameters; review digest, origins, disabled state, project, rates and Cognito"
+            "Invalid AI parameters; review digest, origins, disabled state, model, rates and Cognito"
         )
 
 

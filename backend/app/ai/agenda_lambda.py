@@ -10,7 +10,13 @@ from datetime import date
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import jwt
-from anthropic import APIConnectionError, APIStatusError, APITimeoutError, RateLimitError
+from botocore.exceptions import (
+    ClientError,
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from app.ai.agenda import PROMPT_VERSION, ParsingError, Usage, parse_agenda
@@ -140,18 +146,30 @@ def handler(event, context):
     except ParsingError as error:
         usage = error.usage
         status, response = 422, {"detail": str(error)}
-    except RateLimitError as error:
-        usage = getattr(error, "agenda_usage", usage)
-        status, response = 429, {"detail": "The model is busy. Try again later."}
-    except (APIConnectionError, APITimeoutError) as error:
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+    ) as error:
         usage = getattr(error, "agenda_usage", usage)
         status, response = (
             503,
             {"detail": "Model connection unavailable. Enter your agenda manually."},
         )
-    except APIStatusError as error:
+    except ClientError as error:
         usage = getattr(error, "agenda_usage", usage)
-        status, response = 502, {"detail": "The model could not complete this request."}
+        code = error.response.get("Error", {}).get("Code", "")
+        if code in {"ThrottlingException", "TooManyRequestsException"}:
+            status, response = 429, {"detail": "The model is busy. Try again later."}
+        elif code in {
+            "ServiceUnavailableException",
+            "ModelNotReadyException",
+            "ModelTimeoutException",
+        }:
+            status, response = 503, {"detail": "Model unavailable. Enter your agenda manually."}
+        else:
+            status, response = 502, {"detail": "The model could not complete this request."}
     except Exception as error:
         usage = getattr(error, "agenda_usage", usage)
         # Never log exception text: providers can include source content in errors.

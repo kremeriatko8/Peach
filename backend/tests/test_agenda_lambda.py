@@ -1,9 +1,8 @@
 import json
 from unittest.mock import Mock
 
-import httpx
 import pytest
-from anthropic import APIConnectionError, APIStatusError, RateLimitError
+from botocore.exceptions import ClientError, EndpointConnectionError
 
 from app.ai import agenda_lambda as handler
 from app.ai.agenda import ParsedAgenda, ParsingError, Usage
@@ -13,8 +12,8 @@ from app.config import get_settings
 @pytest.fixture
 def parser(monkeypatch, tokens):
     monkeypatch.setenv("PARSER_ENABLED", "true")
-    monkeypatch.setenv("PARSER_INPUT_USD_PER_MILLION", "5")
-    monkeypatch.setenv("PARSER_OUTPUT_USD_PER_MILLION", "25")
+    monkeypatch.setenv("PARSER_INPUT_USD_PER_MILLION", "0.06")
+    monkeypatch.setenv("PARSER_OUTPUT_USD_PER_MILLION", "0.24")
     get_settings.cache_clear()
     handler._windows.clear()
     parse = Mock(return_value=(ParsedAgenda(items=[], language="en"), Usage(100, 20)))
@@ -60,9 +59,10 @@ def test_success_logs_no_content_or_token(parser, tokens, caplog):
     request = event(tokens, text="private source")
     result = handler.handler(request, None)
     assert result["statusCode"] == 200
-    assert json.loads(result["body"])["estimated_cost_usd"] == 0.001
+    assert json.loads(result["body"])["estimated_cost_usd"] == 0.0000108
     log = json.loads(caplog.records[-1].message)
     assert log["user_id"] == "user-a" and log["prompt_version"] == "agenda-v1"
+    assert log["model"] == "amazon.nova-lite-v1:0"
     assert log["input_tokens"] == 100 and log["latency_ms"] >= 0
     assert (
         "private source" not in caplog.text
@@ -81,13 +81,27 @@ def test_limit_and_disabled(parser, tokens, monkeypatch):
 
 
 def test_provider_errors(parser, tokens):
-    request = httpx.Request("POST", "https://example.test")
-    response = httpx.Response(429, request=request)
     errors = [
         (ParsingError(Usage(10, 20)), 422),
-        (RateLimitError("secret", response=response, body=None), 429),
-        (APIConnectionError(request=request), 503),
-        (APIStatusError("secret", response=response, body=None), 502),
+        (
+            ClientError(
+                {"Error": {"Code": "ThrottlingException", "Message": "secret"}}, "Converse"
+            ),
+            429,
+        ),
+        (EndpointConnectionError(endpoint_url="https://secret"), 503),
+        (
+            ClientError(
+                {"Error": {"Code": "AccessDeniedException", "Message": "secret"}}, "Converse"
+            ),
+            502,
+        ),
+        (
+            ClientError(
+                {"Error": {"Code": "ModelTimeoutException", "Message": "secret"}}, "Converse"
+            ),
+            503,
+        ),
     ]
     for error, status in errors:
         handler._windows.clear()
@@ -118,10 +132,32 @@ def test_missing_prices_fail_closed(parser, tokens, monkeypatch):
 
 
 def test_repair_connection_error_retains_observed_usage(parser, tokens, caplog):
-    error = APIConnectionError(request=httpx.Request("POST", "https://example.test"))
+    error = EndpointConnectionError(endpoint_url="https://example.test")
     error.agenda_usage = Usage(120, 30)
     parser.side_effect = error
     assert handler.handler(event(tokens), None)["statusCode"] == 503
     log = json.loads(caplog.records[-1].message)
     assert log["input_tokens"] == 120 and log["output_tokens"] == 30
     assert log["usage_complete"] is False
+
+
+def test_malformed_provider_response_is_private_fallback_with_partial_usage(parser, tokens, caplog):
+    from app.ai.agenda import ProviderResponseError
+
+    parser.side_effect = ProviderResponseError(Usage(107, 53))
+    result = handler.handler(event(tokens, text="private lecture"), None)
+    assert result["statusCode"] == 503
+    assert "manually" in result["body"]
+    assert "private lecture" not in result["body"] + caplog.text
+    log = json.loads(caplog.records[-1].message)
+    assert log["usage_complete"] is False
+    assert (log["input_tokens"], log["output_tokens"]) == (107, 53)
+    assert log["estimated_cost_usd"] == 0.00001914
+
+
+@pytest.mark.parametrize("field", ["PARSER_INPUT_USD_PER_MILLION", "PARSER_OUTPUT_USD_PER_MILLION"])
+def test_nonfinite_prices_disable_before_inference(parser, tokens, monkeypatch, field):
+    monkeypatch.setenv(field, "inf")
+    get_settings.cache_clear()
+    assert handler.handler(event(tokens), None)["statusCode"] == 503
+    parser.assert_not_called()

@@ -1,54 +1,90 @@
-# ADR 0006: LLM agenda parsing
+# ADR 0006: Reviewed agenda suggestions through Amazon Bedrock
 
-Status: implemented locally; AWS deployment and paid inference not performed.
+Status: Nova Lite adaptation implemented locally October 18, 2026. One separately
+approved minimal Converse request succeeded (4 input / 21 output tokens, 0.869 s,
+$0.00000528 estimated, no retries). This did not test agenda tool use. Deployment
+and instructor acceptance remain pending. See agenda-release-audit.md in docs/.
 
 ## Context
 
-Users paste multilingual meeting notes, review structured proposals, and save
-corrected agendas. Source text is untrusted, potentially sensitive and may contain
-prompt injection. Peach previously had meetings and generic tasks, but no agenda
-API. Existing Aurora and reporting must be preserved. No NAT and low recurring
-cost are constraints.
+The assignment explicitly requires Claude Opus 5.5 through AnthropicBedrockMantle.
+Read-only AWS checks in account 968053399627/us-east-1 returned that model's status
+as unavailable for the account, directing access inquiries to AWS Sales. Its Mantle
+input/output quotas were zero. Other tested Mantle Claude models also reported
+unavailable; Runtime Claude account metadata checks were denied, not proof that
+all Runtime Claude models are unavailable.
+
+The user selected Amazon Nova Lite rather than waiting for external access approval.
+This is a transparent deviation from the model/client requirement, **not an
+instructor-approved substitution**. The submission must state this explicitly.
+
+Pasted external text is untrusted and potentially sensitive. AI must only suggest;
+users review and save via existing validated ownership-isolated APIs. Existing
+meetings, Aurora and weekly reporting must remain working. No NAT or new paid
+network endpoints/always-on inference capacity are acceptable.
 
 ## Decision
 
-Use configured `PARSER_MODEL=anthropic.claude-opus-5-5` in `us-east-1` through
-`anthropic[bedrock]` / `AnthropicBedrockMantle`. Pin the SDK in uv.lock. A separate
-512 MB/30 s container Lambda outside the VPC verifies existing Cognito access JWTs
-before inference. It has no database URL, database permissions, or save behavior.
-Use tool `record_agenda`, the assignment Pydantic schema, and `agenda-v1`. Validate
-output and allow one repair. Missing or ambiguous fields stay null. Inference
-output is advice, never trusted commands or user authorization.
+Use amazon.nova-lite-v1:0 through non-streaming boto3 Bedrock Runtime Converse in
+us-east-1, directly in-region, with record_agenda tool use and full Pydantic
+validation. Derive the tool hint from that schema, inline references and strip
+unsupported root annotations. One exact named tool invocation is required; one
+repair is allowed. Retain PROMPT_VERSION=agenda-v1 because the semantic extraction
+instructions remain unchanged; model ID independently identifies this experiment.
 
-The browser edits a separate copy. Explicit Save calls the owner-scoped agenda
-API on the existing backend. One additive agendas table stores reviewed fields
-and nullable original proposal/model/prompt metadata. Omitted provenance retains
-it; explicit null supports a manual replacement. This is client-submitted
-provenance, not cryptographic proof. One current proposal per meeting is retained;
-regeneration replaces it on Save. Historical proposal versioning is outside scope.
+Keep the separate 512MB/30s parser Lambda outside VPC, disabled initially. Explicit
+SigV4 role credentials, exact-model InvokeModel grant, administrator-owned mandatory
+permissions boundary, shared account concurrency, warm-instance request limit, 10K input
+limit, bounded output, deadline and no automatic SDK retry constrain usage. JWT
+verification happens before paid work. No DB credentials/access or external tool
+execution is added. Save stays Browser→existing API→Aurora and preserves original
+suggestions alongside human corrections. AbortController does not promise provider cancellation.
 
-## Alternatives
+## Alternatives considered
 
-- Existing VPC API plus interface endpoint: fewer application boundaries, but
-  recurring endpoint charges and a larger inference permission boundary. Mantle
-  endpoint/service compatibility must also be checked; do not assume a
-  bedrock-runtime endpoint works for Mantle.
-- Direct Claude API: requires another provider credential/billing path and does
-  not meet the required Bedrock integration.
-- Regular expressions: low compute cost but brittle for multilingual prose,
-  signatures, relative dates, and incomplete notes.
+- Required Claude/Mantle: closest assignment fit but observed account unavailability
+  and zero quotas would require external AWS approval; not silently treated as accessible.
+- Runtime Claude: positive quotas for some models, but account entitlement was not
+  readable. Could preserve Claude with a client change, subject to later access review.
+- Bedrock from existing API via paid VPC interface endpoint: introduces recurring
+  costs and database-connected AI execution; separate outside-VPC parser is preferred.
+- Direct Claude API: different credentials, billing and provider dependency, and
+  would still deviate from the required Bedrock workflow.
+- Regular expressions: poor fit for multilingual prose, relative dates and ambiguity.
+- Nova cross-region/provisioned/custom inference: unnecessary broader permissions,
+  routing or fixed commitments for this lab. Use the base in-region on-demand model.
 
 ## Consequences
 
-No new always-on networking. Costs are input/output tokens, up to two calls per
-parse, Lambda duration, logs and image storage. Rates must be verified and
-configured before parser activation. Logs include Cognito subject, model, prompt,
-usage, latency and estimated USD; no source text, JWTs, or raw provider errors.
-Unknown/failed-call usage cannot be claimed as zero billed usage. A $5 account-wide
-budget alerts by email; it is not a cap. Concurrency 1 and per-warm-instance rate
-limits reduce bursts but do not guarantee a monthly spending ceiling.
+AWS public us-east-1 price catalog checked October 18 (publication October 16)
+lists standard Nova Lite input/output at $0.06/$0.24 per million tokens. Configure
+rates explicitly; unknown pricing disables HTTP parsing. Example 1K input/300 output
+is $0.000132, not a measurement; 2,600/month is $0.3432 before repairs and other
+services. Up to two attempts can bill. No reserved/provisioned concurrency or fixed
+inference commitment is necessary. $5 budget notifications are
+alerts, not hard caps. New pricing/provider logic must pass offline tests first.
 
-Client cancellation aborts fetch and discards late responses; it does not promise
-cancellation of an already-running model request. Manual entry remains available
-when inference is disabled, throttled, invalid or unavailable. Save and reporting
-continue independently of Bedrock. Routine rollback retains additive schema 0005.
+Log model, prompt version, Cognito subject, observed token totals, latency and cost;
+never raw source, JWTs, database URLs or raw provider exceptions. Flag incomplete
+usage on errors. Preserve manual entry when disabled/unavailable and keep save
+independent of inference. Do not claim Nova's extraction quality, Ukrainian handling,
+latency or injection resistance from mocked tests; the five deployed cases remain
+required actual evidence.
+
+Nova is ACTIVE and AUTHORIZED in this account/region; on-demand quotas are
+4,000,000 tokens/minute and 200 requests/minute. The temporary laptop inference
+policy was detached after the approved smoke and verified unattached. Existing Lambda concurrency, shared ECR retention,
+budget, fresh backup and guarded migration prerequisites remain independent gates.
+No live IAM/resources were changed for this decision. Initial agenda migration 0005
+still needs separate approval; this provider adaptation adds no database migration.
+
+
+## University lab simplification
+
+Omit reserved concurrency. The account's shared concurrency of 10 is sufficient
+for a serial demonstration, so no quota increase is requested. Authenticated burst
+traffic could consume this shared pool and throttle the API/reports; warm-instance
+rate limiting is not global. Run one parse at a time and disable parsing outside
+the approved demo window. This accepts modest shared-capacity risk rather than
+adding distributed limiters or paid services. Auth, ownership, validation, token
+bounds, disabled mode, logging, snapshots and rollback safeguards remain unchanged.

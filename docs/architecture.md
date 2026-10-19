@@ -10,7 +10,7 @@ flowchart LR
     cdn[S3 + CloudFront: frontend assets] --> browser
     browser <--> cognito[Cognito: Managed Login / PKCE]
     browser -->|Parse: POST + Cognito access JWT| parser[Parser Lambda + Function URL: outside VPC]
-    parser -->|Messages API / record_agenda tool / SigV4| bedrock[Amazon Bedrock Mantle: Claude]
+    parser -->|Converse API / record_agenda tool / SigV4| bedrock[Amazon Bedrock Runtime: Nova Lite]
     browser -->|Save reviewed agenda: JWT| api[Existing FastAPI Lambda + Function URL: VPC]
     api --> db[(Existing Aurora PostgreSQL)]
     scheduler[Existing weekly Scheduler] --> queue[SQS]

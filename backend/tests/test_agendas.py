@@ -20,7 +20,7 @@ async def test_manual_crud_provenance_and_meeting_atomicity(client, session):
     assert first["ai_suggestion"] is None
     suggestion = {
         "agenda": {**AGENDA, "title": None, "starts_at": None, "duration_minutes": None},
-        "model": "anthropic.claude-opus-5-5",
+        "model": "amazon.nova-lite-v1:0",
         "prompt_version": "agenda-v1",
     }
     saved = await client.put(url, json={**AGENDA, "ai_suggestion": suggestion})
