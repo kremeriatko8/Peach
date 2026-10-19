@@ -215,20 +215,73 @@ def check_capacity(aws):
 
 
 def matching_budget(budget):
-    """Require the named account-wide, pre-credit budget, not a filtered lookalike."""
-    costs = budget.get("CostTypes", {})
-    return (
-        budget.get("BudgetName") == "peach-monthly-cost-alert"
-        and budget.get("TimeUnit") == "MONTHLY"
-        and budget.get("BudgetType") == "COST"
-        and budget.get("BudgetLimit", {}).get("Unit") == "USD"
-        and float(budget.get("BudgetLimit", {}).get("Amount", 0)) == 5
-        and not budget.get("CostFilters")
-        and not budget.get("FilterExpression")
+    """Accept equivalent legacy/Console budgets without permitting narrower coverage."""
+    if not isinstance(budget, dict):
+        return False
+    costs = budget.get("CostTypes")
+    if costs is None:
+        costs = {}
+    limit = budget.get("BudgetLimit")
+    if not isinstance(costs, dict) or not isinstance(limit, dict):
+        return False
+    try:
+        amount = float(limit.get("Amount", 0))
+    except (TypeError, ValueError):
+        return False
+    expression = budget.get("FilterExpression")
+    modern_costs = (
+        budget.get("Metrics") == ["UnblendedCost"]
+        and expression
+        in (
+            {
+                "Not": {
+                    "Dimensions": {"Key": "RECORD_TYPE", "Values": ["Credit", "Refund"]}
+                }
+            },
+            {
+                "Not": {
+                    "Dimensions": {"Key": "RECORD_TYPE", "Values": ["Refund", "Credit"]}
+                }
+            },
+        )
+        and not costs
+    )
+    legacy_costs = (
+        not expression
         and costs.get("IncludeCredit") is False
         and costs.get("IncludeRefund") is False
         and costs.get("UseBlended", False) is False
         and costs.get("UseAmortized", False) is False
+        and budget.get("Metrics", ["UnblendedCost"]) == ["UnblendedCost"]
+    )
+    return (
+        budget.get("BudgetName") == "peach-monthly-cost-alert"
+        and budget.get("TimeUnit") == "MONTHLY"
+        and budget.get("BudgetType") == "COST"
+        and limit.get("Unit") == "USD"
+        and amount == 5
+        and not budget.get("CostFilters")
+        and budget.get(
+            "BillingViewArn", f"arn:aws:billing::{ACCOUNT}:billingview/primary"
+        )
+        == f"arn:aws:billing::{ACCOUNT}:billingview/primary"
+        and (modern_costs or legacy_costs)
+    )
+
+
+def matching_notification(notice):
+    """AWS omits ThresholdType for default percentage notifications."""
+    threshold = notice.get("Threshold")
+    kind = notice.get("ThresholdType", "PERCENTAGE")
+    if type(threshold) not in (int, float):
+        return False
+    return (
+        notice.get("NotificationType") == "ACTUAL"
+        and notice.get("ComparisonOperator") == "GREATER_THAN"
+        and (
+            (kind == "ABSOLUTE_VALUE" and 0 < threshold <= 5)
+            or (kind == "PERCENTAGE" and 0 < threshold <= 100)
+        )
     )
 
 
@@ -328,19 +381,7 @@ def read_checks(aws):
                 AccountId=ACCOUNT, BudgetName=budget["BudgetName"]
             )["Notifications"]
             for notice in notices:
-                absolute = (
-                    notice.get("ThresholdType") == "ABSOLUTE_VALUE"
-                    and 0 < notice["Threshold"] <= 5
-                )
-                percent = (
-                    notice.get("ThresholdType") == "PERCENTAGE"
-                    and 0 < notice["Threshold"] <= 100
-                )
-                if (
-                    notice.get("NotificationType") != "ACTUAL"
-                    or notice.get("ComparisonOperator") != "GREATER_THAN"
-                    or not (absolute or percent)
-                ):
+                if not matching_notification(notice):
                     continue
                 people = budgets.describe_subscribers_for_notification(
                     AccountId=ACCOUNT,

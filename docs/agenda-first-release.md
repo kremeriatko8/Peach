@@ -1,3 +1,8 @@
+> **Historical initial-setup commands:** source commit, ECR protection and the manual
+> $5 budget are now complete. Do not repeat sections 1–3 or create peach-budget.
+> Use the updated pinned command sequence under the ignored preparation archive;
+> its budget/email verification uses the existing budget and performs no creation.
+
 # First protected Agenda release — October 19, 2026
 
 **Prepared only: no mutation below has been run.** One approval can authorize this

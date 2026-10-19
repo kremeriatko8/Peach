@@ -394,3 +394,177 @@ def test_proposed_retention_policy_preserves_tagged_digests_and_rejects_untagged
     with pytest.raises(release.Stop, match="untagged"):
         release.check_image_retention(aws, images)
     ecr.put_lifecycle_policy.assert_not_called()
+
+
+def console_budget():
+    return {
+        "BudgetName": "peach-monthly-cost-alert",
+        "BudgetType": "COST",
+        "TimeUnit": "MONTHLY",
+        "BudgetLimit": {"Amount": "5.0", "Unit": "USD"},
+        "Metrics": ["UnblendedCost"],
+        "FilterExpression": {
+            "Not": {
+                "Dimensions": {"Key": "RECORD_TYPE", "Values": ["Credit", "Refund"]}
+            }
+        },
+        "BillingViewArn": "arn:aws:billing::968053399627:billingview/primary",
+    }
+
+
+@pytest.mark.parametrize("legacy", [True, False])
+def test_equivalent_budget_representations_preserve_gross_cost_checks(legacy):
+    budget = gross_budget() if legacy else console_budget()
+    assert release.matching_budget(budget)
+    if not legacy:
+        budget["CostTypes"] = None
+        budget["FilterExpression"]["Not"]["Dimensions"]["Values"].reverse()
+        assert release.matching_budget(budget)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"BudgetName": "other"},
+        {"BudgetType": "USAGE"},
+        {"TimeUnit": "DAILY"},
+        {"BudgetLimit": {"Amount": "6", "Unit": "USD"}},
+        {"BudgetLimit": {"Amount": "5", "Unit": "EUR"}},
+        {"BudgetLimit": {"Amount": "nan", "Unit": "USD"}},
+        {"BudgetLimit": {"Amount": {}, "Unit": "USD"}},
+        {"BudgetLimit": None},
+        {"Metrics": ["NetUnblendedCost"]},
+        {"Metrics": ["BlendedCost"]},
+        {"Metrics": ["AmortizedCost"]},
+        {"Metrics": []},
+        {"FilterExpression": None},
+        {"FilterExpression": {"Not": None}},
+        {"FilterExpression": {"Not": {"Dimensions": None}}},
+        {
+            "FilterExpression": {
+                "Not": {"Dimensions": {"Key": "RECORD_TYPE", "Values": ["Credit"]}}
+            }
+        },
+        {
+            "FilterExpression": {
+                "Not": {
+                    "Dimensions": {
+                        "Key": "RECORD_TYPE",
+                        "Values": ["Credit", "Refund", "Tax"],
+                    }
+                }
+            }
+        },
+        {
+            "FilterExpression": {
+                "Dimensions": {"Key": "SERVICE", "Values": ["Amazon Bedrock"]}
+            }
+        },
+        {"CostFilters": {"Region": ["us-east-1"]}},
+        {"CostTypes": {"IncludeCredit": True}},
+        {"CostTypes": []},
+        {"BillingViewArn": "arn:aws:billing::968053399627:billingview/custom"},
+    ],
+)
+def test_console_budget_rejects_wrong_amount_basis_filters_or_malformed_structure(
+    change,
+):
+    assert not release.matching_budget({**console_budget(), **change})
+
+
+@pytest.mark.parametrize(
+    "kind,threshold,ok",
+    [
+        ("omitted", 85, True),
+        ("omitted", 100, True),
+        ("PERCENTAGE", 100, True),
+        ("ABSOLUTE_VALUE", 5, True),
+        ("ABSOLUTE_VALUE", 4.25, True),
+        ("PERCENTAGE", 101, False),
+        ("ABSOLUTE_VALUE", 5.01, False),
+        (None, 100, False),
+        ("unknown", 5, False),
+        ("omitted", 0, False),
+        ("omitted", -1, False),
+        ("omitted", "100", False),
+        ("omitted", True, False),
+        ("omitted", float("nan"), False),
+        ("omitted", float("inf"), False),
+    ],
+)
+def test_notification_default_percentage_and_bounded_threshold(kind, threshold, ok):
+    notice = {
+        "NotificationType": "ACTUAL",
+        "ComparisonOperator": "GREATER_THAN",
+        "Threshold": threshold,
+    }
+    if kind != "omitted":
+        notice["ThresholdType"] = kind
+    assert release.matching_notification(notice) is ok
+    assert not release.matching_notification(
+        {**notice, "NotificationType": "FORECASTED"}
+    )
+    assert not release.matching_notification(
+        {**notice, "ComparisonOperator": "LESS_THAN"}
+    )
+
+
+@pytest.mark.parametrize("legacy", [True, False])
+@pytest.mark.parametrize(
+    "subscriber,ok",
+    [
+        ({"SubscriptionType": "EMAIL", "Address": "operator@example.test"}, True),
+        ({"SubscriptionType": "EMAIL", "Address": "other@example.test"}, False),
+        ({"SubscriptionType": "SNS", "Address": "operator@example.test"}, False),
+    ],
+)
+def test_complete_budget_gate_accepts_only_matching_email_for_both_formats(
+    monkeypatch, legacy, subscriber, ok
+):
+    monkeypatch.setenv("PEACH_BUDGET_EMAIL", "operator@example.test")
+    monkeypatch.setattr(release, "stack", lambda *a, **k: None)
+    aws, services = nova_read_session()
+    b = services["budgets"]
+    b.get_paginator.return_value.paginate.return_value = [
+        {"Budgets": [gross_budget() if legacy else console_budget()]}
+    ]
+    notice = {
+        "NotificationType": "ACTUAL",
+        "ComparisonOperator": "GREATER_THAN",
+        "Threshold": 100,
+    }
+    if legacy:
+        notice["ThresholdType"] = "PERCENTAGE"
+    b.describe_notifications_for_budget.return_value = {"Notifications": [notice]}
+    b.describe_subscribers_for_notification.return_value = {"Subscribers": [subscriber]}
+    if ok:
+        release.read_checks(aws)
+    else:
+        with pytest.raises(release.Stop, match="email notification"):
+            release.read_checks(aws)
+    assert "bedrock-runtime" not in [c.args[0] for c in aws.client.call_args_list]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"Metrics": ["NetUnblendedCost"]},
+        {
+            "CostTypes": {
+                "IncludeCredit": False,
+                "IncludeRefund": False,
+                "UseBlended": True,
+            }
+        },
+        {
+            "CostTypes": {
+                "IncludeCredit": False,
+                "IncludeRefund": False,
+                "UseAmortized": True,
+            }
+        },
+        {"CostTypes": {"IncludeCredit": False}},
+    ],
+)
+def test_legacy_budget_cannot_relax_cost_basis_when_console_support_is_added(change):
+    assert not release.matching_budget({**gross_budget(), **change})

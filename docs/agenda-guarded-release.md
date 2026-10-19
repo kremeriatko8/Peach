@@ -1,3 +1,9 @@
+> **Current budget:** the manually created peach-monthly-cost-alert is verified.
+> Do not create a duplicate budget stack or repeat the completed ECR change. The
+> release verifier accepts both legacy CostTypes and equivalent Console
+> FilterExpression/Metrics, including default percentage alerts, without relaxing
+> cost/email checks. Use the updated private pinned runbook after this fix's commit.
+
 > **First protected release commands (October 19):** [exact ordered procedure](agenda-first-release.md).
 > Includes private email parameters, pinned source, preservation, encrypted snapshot,
 > guarded revision/migration, disabled parser and no-inference checks. Not executed.
