@@ -568,3 +568,60 @@ def test_complete_budget_gate_accepts_only_matching_email_for_both_formats(
 )
 def test_legacy_budget_cannot_relax_cost_basis_when_console_support_is_added(change):
     assert not release.matching_budget({**gross_budget(), **change})
+
+
+@pytest.mark.parametrize(
+    "version,accepted", [("agenda-v2", True), ("agenda-v1", False)]
+)
+def test_paid_smoke_checks_current_prompt_version_offline(
+    monkeypatch, tmp_path, version, accepted
+):
+    import httpx
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "backend"))
+    monkeypatch.setattr(release, "load_state", lambda args: {"new_image": "pinned"})
+    monkeypatch.setattr(
+        release,
+        "parser_config",
+        lambda aws: {
+            "Environment": {"Variables": {"PARSER_ENABLED": "true"}},
+            "LastModified": "same",
+        },
+    )
+    monkeypatch.setattr(release, "image", lambda *a: "pinned")
+    monkeypatch.setattr(release, "stack", lambda *a: {})
+    monkeypatch.setattr(
+        release, "outputs", lambda *a: {"ParserUrl": "https://parser.test"}
+    )
+    monkeypatch.setattr(release, "token_file", lambda *a: "synthetic-unit-test-token")
+    client = Mock()
+    client.post.side_effect = [
+        httpx.Response(401),
+        httpx.Response(413),
+        httpx.Response(
+            200,
+            json={
+                "agenda": {"items": [], "language": "en"},
+                "model": "amazon.nova-lite-v1:0",
+                "prompt_version": version,
+            },
+        ),
+    ]
+    context = Mock()
+    context.__enter__ = Mock(return_value=client)
+    context.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(httpx, "Client", Mock(return_value=context))
+    args = SimpleNamespace(
+        commit="c" * 40,
+        directory=tmp_path,
+        token_file=None,
+        approve=f"{release.ACCOUNT}:{'c' * 40}:paid-smoke",
+    )
+    if accepted:
+        release.smoke(args, Mock(), paid=True)
+        assert (tmp_path / "paid-smoke.json").exists()
+    else:
+        with pytest.raises(release.Stop):
+            release.smoke(args, Mock(), paid=True)
+        assert not (tmp_path / "paid-smoke.json").exists()
+    assert client.post.call_count == 3

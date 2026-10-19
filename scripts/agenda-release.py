@@ -894,13 +894,13 @@ def smoke(args, aws, paid=False):
         result.status_code == 200,
         f"Paid smoke failed HTTP {result.status_code}; do not retry automatically",
     )
-    from app.ai.agenda import ParsedAgenda
+    from app.ai.agenda import PROMPT_VERSION, ParsedAgenda
 
     body = result.json()
     ParsedAgenda.model_validate(body["agenda"])
     require(
         body["model"] == "amazon.nova-lite-v1:0"
-        and body["prompt_version"] == "agenda-v1",
+        and body["prompt_version"] == PROMPT_VERSION,
         "Unexpected model/prompt result",
     )
     write(

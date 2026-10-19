@@ -5,6 +5,7 @@ import json
 import logging
 import threading
 import time
+import uuid
 from collections import OrderedDict
 from datetime import date
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -86,7 +87,7 @@ def reply(status, detail):
     }
 
 
-def handler(event, context):
+def _handle(event, context, telemetry):
     if event.get("requestContext", {}).get("http", {}).get("method") != "POST":
         return reply(405, {"detail": "Use POST"})
     headers = {key.lower(): value for key, value in event.get("headers", {}).items()}
@@ -119,13 +120,15 @@ def handler(event, context):
         return reply(422, {"detail": "Supply text, today (YYYY-MM-DD), and a valid IANA timezone"})
     settings = get_settings()
     if not settings.parser_enabled:
+        telemetry["reason"] = "disabled"
         return reply(503, {"detail": "Agenda parsing is unavailable. Enter your agenda manually."})
     if estimate_cost(1, 1) is None:
+        telemetry["reason"] = "pricing_unavailable"
         return reply(503, {"detail": "Parser pricing configuration is unavailable"})
     if limited(user.sub):
         return reply(429, {"detail": "Too many requests. Wait a minute and try again."})
     start = time.monotonic()
-    usage = Usage()
+    usage = telemetry["usage"]
     status = 200
     response = None
     try:
@@ -145,6 +148,7 @@ def handler(event, context):
         }
     except ParsingError as error:
         usage = error.usage
+        telemetry["reason"] = "validation_exhausted"
         status, response = 422, {"detail": str(error)}
     except (
         ConnectionClosedError,
@@ -153,12 +157,14 @@ def handler(event, context):
         ReadTimeoutError,
     ) as error:
         usage = getattr(error, "agenda_usage", usage)
+        telemetry["reason"] = "provider_connection_failed"
         status, response = (
             503,
             {"detail": "Model connection unavailable. Enter your agenda manually."},
         )
     except ClientError as error:
         usage = getattr(error, "agenda_usage", usage)
+        telemetry["reason"] = "provider_error"
         code = error.response.get("Error", {}).get("Code", "")
         if code in {"ThrottlingException", "TooManyRequestsException"}:
             status, response = 429, {"detail": "The model is busy. Try again later."}
@@ -172,26 +178,81 @@ def handler(event, context):
             status, response = 502, {"detail": "The model could not complete this request."}
     except Exception as error:
         usage = getattr(error, "agenda_usage", usage)
+        telemetry["reason"] = "provider_response_failed"
         # Never log exception text: providers can include source content in errors.
         status, response = 503, {"detail": "Parsing unavailable. Enter your agenda manually."}
     latency = round((time.monotonic() - start) * 1000)
     cost = estimate_cost(usage.input_tokens, usage.output_tokens)
+    telemetry.update(usage=usage, latency_ms=latency)
+    if status == 200:
+        response.update(latency_ms=latency, estimated_cost_usd=cost)
+    return reply(status, response)
+
+
+def handler(event, context):
+    """Log content-free telemetry for every outcome, including zero-call rejection."""
+    start = time.monotonic()
+    telemetry = {"usage": Usage()}
+    try:
+        result = _handle(event, context, telemetry)
+    except Exception:
+        # No exception text: validation/provider errors may contain private source data.
+        telemetry["reason"] = "internal_error"
+        result = reply(503, {"detail": "Parsing unavailable. Enter your agenda manually."})
+    usage = telemetry["usage"]
+    status = result["statusCode"]
+
+    def observed_cost(input_tokens, output_tokens):
+        if input_tokens == output_tokens == 0:
+            return 0.0
+        try:
+            return estimate_cost(input_tokens, output_tokens)
+        except ValueError:
+            return None
+
+    try:
+        model = get_settings().parser_model
+    except ValueError:
+        model = None
+    cost = observed_cost(usage.input_tokens, usage.output_tokens)
+    attempts = [
+        {
+            "number": attempt.number,
+            "input_tokens": attempt.input_tokens,
+            "output_tokens": attempt.output_tokens,
+            "latency_ms": attempt.latency_ms,
+            "reason": attempt.reason,
+            "estimated_cost_usd": (
+                observed_cost(attempt.input_tokens, attempt.output_tokens)
+                if attempt.input_tokens is not None and attempt.output_tokens is not None
+                else None
+            ),
+        }
+        for attempt in usage.attempts
+    ]
     logger.info(
         json.dumps(
             {
                 "event": "agenda_parse",
-                "user_id": user.sub,
-                "model": settings.parser_model,
+                # Random invocation identity, never the Cognito subject or agenda content.
+                "request_id": getattr(context, "aws_request_id", None) or str(uuid.uuid4()),
+                "model": model,
                 "prompt_version": PROMPT_VERSION,
+                "provider_call_count": len(attempts),
+                "repair_attempts": max(0, len(attempts) - 1),
+                "attempts": attempts,
                 "input_tokens": usage.input_tokens,
                 "output_tokens": usage.output_tokens,
-                "latency_ms": latency,
+                "latency_ms": telemetry.get("latency_ms", 0),
+                "request_latency_ms": round((time.monotonic() - start) * 1000),
                 "estimated_cost_usd": cost,
                 "status": status,
-                "usage_complete": status in (200, 422),
+                "reason": usage.failure_reason
+                or telemetry.get("reason")
+                or ("success" if status == 200 else "request_rejected"),
+                "usage_complete": usage.complete,
+                "cost_complete": usage.complete and cost is not None,
             }
         )
     )
-    if status == 200:
-        response.update(latency_ms=latency, estimated_cost_usd=cost)
-    return reply(status, response)
+    return result
