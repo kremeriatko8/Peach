@@ -1,0 +1,61 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "NovaModelMetadataOnly",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:GetFoundationModel"
+      ],
+      "Resource": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0"
+    },
+    {
+      "Sid": "RegionalModelAvailabilityRead",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:GetFoundationModelAvailability"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "BudgetReadOnly",
+      "Effect": "Allow",
+      "Action": "budgets:ViewBudget",
+      "Resource": "arn:aws:budgets::968053399627:budget/*"
+    },
+    {
+      "Sid": "KnownStacksOnly",
+      "Effect": "Allow",
+      "Action": "cloudformation:DescribeStacks",
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-ai/*",
+        "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-budget/*"
+      ]
+    },
+    {
+      "Sid": "SharedImageRetentionRead",
+      "Effect": "Allow",
+      "Action": "ecr:GetLifecyclePolicy",
+      "Resource": "arn:aws:ecr:us-east-1:968053399627:repository/peach-backend"
+    },
+    {
+      "Sid": "RegionalCapacityReadWithoutResourceScope",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetAccountSettings",
+        "servicequotas:ListServiceQuotas"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}

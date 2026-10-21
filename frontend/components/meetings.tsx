@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AgendaDialog } from "@/components/agenda-dialog";
 import { MeetingFormDialog } from "@/components/meeting-form-dialog";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,13 +28,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Meeting } from "@/lib/api";
 import { formatMeetingStart } from "@/lib/meeting-time";
 import { MEETINGS_PAGE_SIZE, useMeetingApi, useMeetings } from "@/lib/meetings";
 
 export function Meetings() {
   const [page, setPage] = useState(0);
+  const [agendaMeeting, setAgendaMeeting] = useState<Meeting | null>(null);
   const [open, setOpen] = useState(false);
+  const [chooseAgenda, setChooseAgenda] = useState(false);
+  const [pasteAfterCreate, setPasteAfterCreate] = useState(false);
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Meeting | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -56,21 +67,38 @@ export function Meetings() {
   });
 
   function create() {
+    setPasteAfterCreate(false);
     setEditing(null);
     setOpen(true);
   }
 
   return (
     <div className="grid gap-8">
+      {agendaMeeting && (
+        <AgendaDialog
+          key={agendaMeeting.id}
+          meeting={agendaMeeting}
+          onClose={() => setAgendaMeeting(null)}
+        />
+      )}
       <PageHeader
         icon="🗓️"
         title="Meetings"
         description="Your conversations, with a little more clarity. Times shown in Europe/Kyiv."
         action={
-          <Button size="lg" onClick={create}>
-            <Plus data-icon="inline-start" className="size-4" />
-            New meeting
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setChooseAgenda(true)}
+            >
+              Paste an Agenda
+            </Button>
+            <Button size="lg" onClick={create}>
+              <Plus data-icon="inline-start" className="size-4" />
+              New meeting
+            </Button>
+          </div>
         }
       />
       {isPending && (
@@ -155,10 +183,18 @@ export function Meetings() {
                     </div>
                     <div className="flex shrink-0 flex-col gap-1 sm:flex-row">
                       <Button
+                        variant="outline"
+                        onClick={() => setAgendaMeeting(meeting)}
+                        aria-label={`Agenda for ${meeting.title}`}
+                      >
+                        Agenda
+                      </Button>
+                      <Button
                         size="icon"
                         variant="ghost"
                         aria-label={`Edit ${meeting.title}`}
                         onClick={() => {
+                          setPasteAfterCreate(false);
                           setEditing(meeting);
                           setOpen(true);
                         }}
@@ -209,7 +245,57 @@ export function Meetings() {
           )}
         </section>
       )}
-      <MeetingFormDialog open={open} onOpenChange={setOpen} meeting={editing} />
+      <Dialog open={chooseAgenda} onOpenChange={setChooseAgenda}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Paste an Agenda</DialogTitle>
+            <DialogDescription>
+              Choose a meeting from this page, or create one first. Then paste,
+              review and correct its agenda. Manual entry is always available.
+            </DialogDescription>
+          </DialogHeader>
+          {isPending && <p role="status">Loading meetings…</p>}
+          {isError && (
+            <p role="alert">
+              Could not load meetings. Close this dialog and retry the meeting
+              list.
+            </p>
+          )}
+          {data?.meetings.map((meeting) => (
+            <Button
+              key={meeting.id}
+              variant="outline"
+              onClick={() => {
+                setChooseAgenda(false);
+                setAgendaMeeting(meeting);
+              }}
+            >
+              {meeting.title}
+            </Button>
+          ))}
+          {!isPending && !isError && !data?.meetings.length && (
+            <p>No meetings on this page. Create a meeting to add its agenda.</p>
+          )}
+          <Button
+            onClick={() => {
+              setChooseAgenda(false);
+              setEditing(null);
+              setPasteAfterCreate(true);
+              setOpen(true);
+            }}
+          >
+            Create meeting and continue
+          </Button>
+        </DialogContent>
+      </Dialog>
+      <MeetingFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        meeting={editing}
+        onCreated={
+          pasteAfterCreate ? (meeting) => setAgendaMeeting(meeting) : undefined
+        }
+      />
       <AlertDialog
         open={pendingDelete !== null}
         onOpenChange={(value) => {

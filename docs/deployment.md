@@ -156,3 +156,12 @@ not implemented by this task, and backend releases currently do not refresh repo
 
 This policy was implemented and tested locally. No push, commit, remote workflow
 setting change, AWS mutation, production migration or deployment was performed.
+
+## Agenda release 0005 (prepared, not executed)
+
+The new head is 0005; preserve all existing tasks, meetings and agendas. The runner
+verifies agenda columns/constraints/FK/uniqueness and before/after rows in addition
+to the existing protections. Backend change-set verification requires those proofs.
+A new fingerprint and fresh verified snapshot are required. Retain 0005 on routine
+rollback. AI stack and budget are separate manual approvals, never ordinary CI.
+See [agenda release guide](agenda-ai.md) for exact commands and activation gates.

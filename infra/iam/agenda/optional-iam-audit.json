@@ -1,0 +1,43 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetUser",
+        "iam:ListAttachedUserPolicies",
+        "iam:ListUserPolicies",
+        "iam:GetUserPolicy",
+        "iam:ListGroupsForUser"
+      ],
+      "Resource": "arn:aws:iam::968053399627:user/sofiia"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:ListRolePolicies",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRoleTags"
+      ],
+      "Resource": [
+        "arn:aws:iam::968053399627:role/peach-backend-ExecutionRole-PWplj0iyaN28",
+        "arn:aws:iam::968053399627:role/peach-ai-Role-*",
+        "arn:aws:iam::968053399627:role/peach-github-deploy",
+        "arn:aws:iam::968053399627:role/peach-reports-deploy"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion"
+      ],
+      "Resource": [
+        "arn:aws:iam::968053399627:policy/*",
+        "arn:aws:iam::aws:policy/*"
+      ]
+    }
+  ]
+}

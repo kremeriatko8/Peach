@@ -76,7 +76,7 @@ def test_private_runner_rejects_source_head_without_actual_database_revision(mon
     # The local ORM test database has no Alembic revision. Source head is insufficient.
     with pytest.raises(SQLAlchemyError):
         migrate({"action": "migrate"}, None)
-    assert calls == ["0004"]
+    assert calls == ["0005"]
 
 
 def test_private_runner_propagates_migration_failure(monkeypatch):

@@ -102,8 +102,11 @@ elif args[:2]==['cloudformation','describe-change-set']:
     print(json.dumps({'Status':'CREATE_COMPLETE','ExecutionStatus':'AVAILABLE','ChangeSetId':'test-change-set','Changes':[{'ResourceChange':{'ResourceType':'AWS::RDS::DBCluster' if scenario in ('replace-db', 'ordinary-unsafe') else 'AWS::Lambda::Function','Action':'Modify','Replacement':'True' if scenario in ('replace-db', 'ordinary-unsafe') else 'False'}}]}))
 elif args[:2]==['lambda','get-function-configuration']:
     print(json.dumps({'Role':'' if scenario=='missing-role' else 'test-existing-role','VpcConfig':{'VpcId':'vpc-test','SubnetIds':['subnet-a','subnet-b'],'SecurityGroupIds':['sg-existing']},'Environment':{'Variables':{'DATABASE_URL':'postgresql+asyncpg://peach:@db/peach' if scenario=='empty-password' else 'postgresql+asyncpg://peach:synthetic@db/peach'}}}))
+elif args[:2]==['lambda','invoke'] and json.loads(value('--payload')).get('action')=='inspect_revision':
+    Path(args[-1]).write_text(json.dumps({'status':'ok','read_only':scenario!='inspection-writable','revision':'0003' if scenario=='inspection-wrong' else '0004'}))
+    print('Unhandled' if scenario=='inspection-failure' else 'None')
 elif args[:2]==['lambda','invoke']:
-    Path(args[-1]).write_text(json.dumps({'status':'failed' if scenario=='bad-result' else 'ok','migrated_to':'0003' if scenario=='wrong-head' else '0004','verification':{'owner_column':True,'ownership_index':scenario!='bad-verification','rows_preserved':True,'ownership_preserved':True,'rows_before':14,'rows_after':14,'meetings_schema':scenario!='bad-meetings-schema','meeting_rows_preserved':scenario!='bad-meetings-preservation','meetings_before':2,'meetings_after':3 if scenario=='meeting-count-mismatch' else 2}}))
+    Path(args[-1]).write_text(json.dumps({'status':'failed' if scenario=='bad-result' else 'ok','from_revision':'wrong' if scenario=='wrong-source' else '0004','migrated_to':'0003' if scenario=='wrong-head' else '0005','verification':{'agendas_schema':scenario!='bad-agendas-schema','agenda_rows_preserved':scenario!='bad-agendas-preservation','agendas_before':1,'agendas_after':2 if scenario=='agenda-count-mismatch' else 1,'owner_column':True,'ownership_index':scenario!='bad-verification','rows_preserved':True,'ownership_preserved':True,'rows_before':14,'rows_after':14,'meetings_schema':scenario!='bad-meetings-schema','meeting_rows_preserved':scenario!='bad-meetings-preservation','meetings_before':2,'meetings_after':3 if scenario=='meeting-count-mismatch' else 2}}))
     print('Unhandled' if scenario=='migration-failure' else 'None')
 elif args[:2]==['secretsmanager','get-secret-value']:
     if scenario=='secret-read-failure': sys.exit(1)
@@ -114,7 +117,7 @@ elif args[:2]==['ecr','get-login-password']: print('synthetic')
             )
             executable(
                 "docker",
-                "import os,sys\nassert 'GOOGLE_CLIENT_SECRET' not in os.environ\nif os.environ.get('GITHUB_ACTIONS')=='true': assert 'AWS_PROFILE' not in os.environ\nif len(sys.argv)>1 and sys.argv[1]=='login': sys.stdin.read()\n",
+                "import os,sys\nassert 'GOOGLE_CLIENT_SECRET' not in os.environ\nif os.environ.get('GITHUB_ACTIONS')=='true': assert 'AWS_PROFILE' not in os.environ\nif len(sys.argv)>1 and sys.argv[1]=='login': sys.stdin.read()\nif len(sys.argv)>1 and sys.argv[1]=='run' and os.environ['SCENARIO']=='image-smoke-failure': sys.exit(1)\n",
             )
             executable("curl", "import sys\nsys.exit(0)\n")
             executable(
@@ -266,6 +269,7 @@ elif args[:2]==['ecr','get-login-password']: print('synthetic')
     def test_failures_never_update_public_backend(self):
         for scenario in (
             "unapproved-schema",
+            "image-smoke-failure",
             "wrong-approval",
             "invalid-marker",
             "ordinary-unsafe",
@@ -273,7 +277,14 @@ elif args[:2]==['ecr','get-login-password']: print('synthetic')
             "migration-failure",
             "bad-result",
             "wrong-head",
+            "wrong-source",
+            "inspection-failure",
+            "inspection-wrong",
+            "inspection-writable",
             "bad-verification",
+            "bad-agendas-schema",
+            "bad-agendas-preservation",
+            "agenda-count-mismatch",
             "bad-meetings-schema",
             "bad-meetings-preservation",
             "meeting-count-mismatch",

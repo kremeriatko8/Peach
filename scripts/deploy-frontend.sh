@@ -15,7 +15,7 @@ log() { printf '\033[36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m==>\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
-if [[ -f "${ROOT}/.env" ]]; then
+if [[ "${PEACH_IGNORE_LOCAL_ENV:-false}" != true && -f "${ROOT}/.env" ]]; then
   # Variables already exported win over .env: `AWS_REGION=eu-central-1 make x`
   # must not be quietly reset to the region .env names.
   preset="$(export -p)"
@@ -43,6 +43,13 @@ STACK_NAME="${FRONTEND_STACK_NAME:-${PROJECT_NAME}-frontend}"
 AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
 export AWS_DEFAULT_REGION="${AWS_REGION}"
 
+BUILD_ARGS=(build)
+case "${FRONTEND_BUILD_ENGINE:-turbopack}" in
+  turbopack) ;;
+  webpack) BUILD_ARGS+=(--webpack) ;;
+  *) die "FRONTEND_BUILD_ENGINE must be turbopack or webpack" ;;
+esac
+
 # --- preflight --------------------------------------------------------------
 
 for tool in aws node; do
@@ -67,6 +74,11 @@ fi
 API_URL="${BACKEND_URL:-}"
 API_URL="${API_URL%/}"
 [[ -n "${API_URL}" ]] || die "BACKEND_URL is not set in .env - run make deploy-backend first"
+
+if [[ -n "${PARSER_URL:-}" ]]; then
+  [[ "${PARSER_URL}" =~ ^https://[A-Za-z0-9.-]+/?$ ]] \
+    || die "PARSER_URL must be an HTTPS parser origin"
+fi
 
 log "building against ${API_URL}"
 
@@ -116,7 +128,7 @@ log "installing dependencies"
 
 log "building the static export"
 rm -rf "${APP}/out"
-(cd "${APP}" && NEXT_OUTPUT=export NEXT_PUBLIC_API_URL="${API_URL}" "${PM[@]}" build)
+(cd "${APP}" && NEXT_OUTPUT=export NEXT_PUBLIC_API_URL="${API_URL}" NEXT_PUBLIC_PARSER_URL="${PARSER_URL:-}" "${PM[@]}" "${BUILD_ARGS[@]}")
 [[ -f "${APP}/out/index.html" ]] || die "the export produced no out/index.html"
 
 # --- upload -----------------------------------------------------------------

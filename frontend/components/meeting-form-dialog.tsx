@@ -42,9 +42,15 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   meeting: Meeting | null;
+  onCreated?: (meeting: Meeting) => void;
 };
 
-export function MeetingFormDialog({ open, onOpenChange, meeting }: Props) {
+export function MeetingFormDialog({
+  open,
+  onOpenChange,
+  meeting,
+  onCreated,
+}: Props) {
   const queryClient = useQueryClient();
   const api = useMeetingApi();
   const form = useForm<FormValues>({
@@ -94,12 +100,13 @@ export function MeetingFormDialog({ open, onOpenChange, meeting }: Props) {
         ? api.updateMeeting(meeting.id, payload)
         : api.createMeeting(payload);
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       if (api.session?.signal.aborted) return;
       await queryClient.invalidateQueries({ queryKey: api.queryKey });
       if (api.session?.signal.aborted) return;
       toast.success(meeting ? "Meeting updated" : "Meeting created");
       onOpenChange(false);
+      if (!meeting) onCreated?.(saved);
     },
     onError: (error: Error) => {
       if (!api.session?.signal.aborted)
@@ -140,7 +147,9 @@ export function MeetingFormDialog({ open, onOpenChange, meeting }: Props) {
         <DialogHeader>
           <DialogTitle>{meeting ? "Edit meeting" : "New meeting"}</DialogTitle>
           <DialogDescription>
-            Make room for a conversation. All times are in Europe/Kyiv.
+            {onCreated && !meeting
+              ? "Create the meeting first, then paste and review its agenda. All times are in Europe/Kyiv."
+              : "Make room for a conversation. All times are in Europe/Kyiv."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -269,7 +278,9 @@ export function MeetingFormDialog({ open, onOpenChange, meeting }: Props) {
                 ? "Saving…"
                 : meeting
                   ? "Save changes"
-                  : "Create meeting"}
+                  : onCreated
+                    ? "Create meeting and open agenda"
+                    : "Create meeting"}
             </Button>
           </DialogFooter>
         </form>

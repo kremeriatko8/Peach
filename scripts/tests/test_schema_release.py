@@ -32,7 +32,7 @@ def source(tmp_path):
 
 def test_baseline_must_be_established_by_approved_schema_release(gate):
     current = gate.manifest()
-    assert current["revision"] == "0004"
+    assert current["revision"] == "0005"
     for deployed in ("", "0" * 64):
         for approval in ("", "1" * 64):
             with pytest.raises(ValueError):
@@ -70,7 +70,7 @@ def test_changed_migration_or_runner_requires_new_approval(gate, source, relativ
 def test_incompatible_histories_fail_closed(gate, source, mutation):
     versions = source / "backend/migrations/versions"
     if mutation == "new-head":
-        (versions / "0005.py").write_text('revision = "0005"\ndown_revision = "0004"\n')
+        (versions / "0006.py").write_text('revision = "0006"\ndown_revision = "0005"\n')
     elif mutation == "delete":
         (versions / "0003_item_ownership.py").unlink()
     elif mutation == "branch":

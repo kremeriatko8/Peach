@@ -976,3 +976,13 @@ exact approval plus a fresh manual snapshot; failures stop deployment. The front
 remains manually deployed, and the first reporting stack uses a separately reviewed
 change set. See [the CI/CD release policy](docs/deployment.md) for revision `0004`
 preparation, credentials, failure handling, rollback and future reporting updates.
+
+## Paste an agenda (local implementation; not deployed)
+
+Meetings now have a manual agenda editor and optional Claude suggestions. Only the
+existing authenticated API saves reviewed content; the separate parser has no DB
+access. See [implementation/release guide](docs/agenda-ai.md),
+[architecture](docs/architecture.md), [ADR 0006](docs/adr/0006-llm-agenda-parsing.md),
+and [evaluation preparation](docs/agenda-evaluation.md). Schema head is now `0005`;
+older `0004` references above describe the previous release, not the new target.
+No inference, budget or AI deployment is part of ordinary local tests.
