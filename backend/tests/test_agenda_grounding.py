@@ -4,9 +4,10 @@ from datetime import date
 from unittest.mock import Mock
 
 import pytest
+from test_agenda_parser import response
+
 from app.ai.agenda import ParsedAgenda, ParsingError, parse_agenda
 from app.ai.grounding import clean_proposal, due_supported, ground_proposal
-from test_agenda_parser import response
 
 TODAY = date(2026, 10, 19)
 INJECTION = (

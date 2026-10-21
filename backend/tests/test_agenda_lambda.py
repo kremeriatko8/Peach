@@ -2,10 +2,11 @@ import json
 from unittest.mock import Mock
 
 import pytest
+from botocore.exceptions import ClientError, EndpointConnectionError
+
 from app.ai import agenda_lambda as handler
 from app.ai.agenda import ParsedAgenda, ParsingError, Usage
 from app.config import get_settings
-from botocore.exceptions import ClientError, EndpointConnectionError
 
 
 @pytest.fixture
@@ -163,8 +164,9 @@ def test_nonfinite_prices_disable_before_inference(parser, tokens, monkeypatch, 
 
 
 def test_real_mocked_parser_emits_complete_attempt_telemetry(parser, tokens, monkeypatch, caplog):
-    from app.ai.agenda import parse_agenda
     from test_agenda_parser import response
+
+    from app.ai.agenda import parse_agenda
 
     runtime = Mock()
     runtime.converse.side_effect = [response(count=0), response()]
@@ -220,9 +222,10 @@ def test_failed_envelope_telemetry_retains_observed_usage(
 
 
 def test_repair_timeout_telemetry_has_unknown_second_usage(parser, tokens, monkeypatch, caplog):
-    from app.ai.agenda import parse_agenda
     from botocore.exceptions import ReadTimeoutError
     from test_agenda_parser import response
+
+    from app.ai.agenda import parse_agenda
 
     runtime = Mock()
     runtime.converse.side_effect = [response(count=0), ReadTimeoutError(endpoint_url="private")]
@@ -272,8 +275,9 @@ def test_invalid_configuration_fails_closed_and_logs_without_sensitive_error(
 def test_exact_injection_returns_manual_fallback_with_zero_provider_calls(
     parser, tokens, monkeypatch, caplog
 ):
-    from app.ai.agenda import parse_agenda
     from test_agenda_grounding import INJECTION
+
+    from app.ai.agenda import parse_agenda
 
     runtime = Mock()
     monkeypatch.setattr(

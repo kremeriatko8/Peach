@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+
 from app.ai.agenda import PROMPT_VERSION, ParsingError, parse_agenda
 
 VALID = {
@@ -118,6 +119,7 @@ def test_locked_sdk_serializes_tool_request_without_network():
 
 def test_client_uses_sigv4_and_bounded_single_attempt(monkeypatch):
     import boto3
+
     from app.ai.agenda import make_client
 
     session = Mock()
