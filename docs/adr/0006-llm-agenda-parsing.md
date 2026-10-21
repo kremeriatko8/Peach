@@ -1,12 +1,11 @@
 # ADR 0006: Reviewed agenda suggestions through Amazon Bedrock
 
-Status: implemented and deployed October 19, 2026. Backend/migration0005
-are released; frontend is published and agenda-v2 parser is DISABLED after the
-user reported a prompt-injection failure in five real UI tests. V1 and v2
-CloudWatch evidence remain separate; v2 JSON/screenshots are missing. Local v3
-source checks and placeholder cleanup are documented in agenda-v3-safety.md and
-are not deployed or real-model verified. Instructor acceptance of the Nova substitution remains pending.
-See agenda-v2-quality.md and agenda-evaluation.md.
+Status: implemented and deployed. As verified October 21, 2026, backend/migration0005,
+frontend and agenda-v3 are released; parser is enabled. The user reports a successful
+24-second correction-and-Save demo. Real v3 success telemetry exists; earlier provider
+errors and unknown failed-call costs remain unresolved. V2's live injection failed;
+v3's matching live injection result and v2 actual JSON are missing. Instructor acceptance
+of Nova remains pending. See agenda-evaluation.md and submission/lab6/README.md.
 
 ## Context
 
@@ -32,8 +31,8 @@ Use amazon.nova-lite-v1:0 through non-streaming boto3 Bedrock Runtime Converse i
 us-east-1, directly in-region, with record_agenda tool use and full Pydantic
 validation. Derive the tool hint from that schema, inline references and strip
 unsupported root annotations. One exact named tool invocation is required; one
-repair is allowed. PROMPT_VERSION=agenda-v2 identifies revised extraction guidance
-and deterministic reference calendar; historical v1 evidence remains unchanged.
+repair is allowed. PROMPT_VERSION=agenda-v3 identifies current conservative source checks in addition
+to extraction guidance and reference calendar; historical v1/v2 evidence stays separate.
 
 Keep the separate 512MB/30s parser Lambda outside VPC, disabled initially. Explicit
 SigV4 role credentials, exact-model InvokeModel grant, administrator-owned mandatory
@@ -72,8 +71,9 @@ and aggregate observed token usage, latency, safe outcomes and estimated cost;
 never raw source, JWTs, database URLs or raw provider exceptions. Flag incomplete
 usage on errors. Preserve manual entry when disabled/unavailable and keep save
 independent of inference. Do not claim Nova's extraction quality, Ukrainian handling,
-latency or injection resistance from mocked tests. Five real representative v1
-HTTP cases exist; exact course inputs and deployed UI evidence are still incomplete.
+latency or injection resistance from mocked tests. Five representative v1 HTTP cases have actual JSON. Five v2 course-category UI cases
+have reported outcomes and telemetry but missing actual JSON. Successful ordinary v3
+parses do not establish full quality or security regression coverage.
 
 Nova is ACTIVE and AUTHORIZED in this account/region; on-demand quotas are
 4,000,000 tokens/minute and 200 requests/minute. The temporary laptop inference
@@ -83,13 +83,13 @@ No live IAM/resources were changed by the original provider adaptation itself.
 Migration0005 was subsequently approved and released. No further migration is
 required for v2 or the frontend.
 
-
 ## University lab simplification
 
 Omit reserved concurrency. The account's shared concurrency of 10 is sufficient
 for a serial demonstration, so no quota increase is requested. Authenticated burst
 traffic could consume this shared pool and throttle the API/reports; warm-instance
-rate limiting is not global. Run one parse at a time and disable parsing outside
-the approved demo window. This accepts modest shared-capacity risk rather than
+rate limiting is not global. Run one parse at a time. The user requested leaving parsing available for instructor
+testing subject to successful verification and a final decision; current state is enabled,
+not automatic shutdown. The $5 budget is an alert and warm-instance limits are not global. This accepts modest shared-capacity risk rather than
 adding distributed limiters or paid services. Auth, ownership, validation, token
 bounds, disabled mode, logging, snapshots and rollback safeguards remain unchanged.

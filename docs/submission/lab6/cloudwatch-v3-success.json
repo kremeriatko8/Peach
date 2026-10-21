@@ -1,0 +1,27 @@
+{
+  "event": "agenda_parse",
+  "request_id": "a1240f16-fb4b-4cd8-80f5-c1c14666103e",
+  "model": "amazon.nova-lite-v1:0",
+  "prompt_version": "agenda-v3",
+  "provider_call_count": 1,
+  "repair_attempts": 0,
+  "attempts": [
+    {
+      "number": 1,
+      "input_tokens": 1624,
+      "output_tokens": 153,
+      "latency_ms": 1810,
+      "reason": "success",
+      "estimated_cost_usd": 0.00013416
+    }
+  ],
+  "input_tokens": 1624,
+  "output_tokens": 153,
+  "latency_ms": 2740,
+  "request_latency_ms": 2747,
+  "estimated_cost_usd": 0.00013416,
+  "status": 200,
+  "reason": "success",
+  "usage_complete": true,
+  "cost_complete": true
+}
