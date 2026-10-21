@@ -1,0 +1,218 @@
+[
+  {
+    "timestamp_utc": "2026-10-21T18:34:40.459000+00:00",
+    "telemetry": {
+      "event": "agenda_parse",
+      "request_id": "4b7b13d0-9bd0-4cf0-953a-1344ee951c88",
+      "model": "amazon.nova-lite-v1:0",
+      "prompt_version": "agenda-v3",
+      "provider_call_count": 1,
+      "repair_attempts": 0,
+      "attempts": [
+        {
+          "number": 1,
+          "input_tokens": 1636,
+          "output_tokens": 141,
+          "latency_ms": 1528,
+          "reason": "success",
+          "estimated_cost_usd": 0.000132
+        }
+      ],
+      "input_tokens": 1636,
+      "output_tokens": 141,
+      "latency_ms": 2461,
+      "request_latency_ms": 2468,
+      "estimated_cost_usd": 0.000132,
+      "status": 200,
+      "reason": "success",
+      "usage_complete": true,
+      "cost_complete": true
+    }
+  },
+  {
+    "timestamp_utc": "2026-10-21T18:40:08.033000+00:00",
+    "telemetry": {
+      "event": "agenda_parse",
+      "request_id": "929a577e-b245-4266-9d11-dd4c1df8cbd0",
+      "model": "amazon.nova-lite-v1:0",
+      "prompt_version": "agenda-v3",
+      "provider_call_count": 1,
+      "repair_attempts": 0,
+      "attempts": [
+        {
+          "number": 1,
+          "input_tokens": 1653,
+          "output_tokens": 755,
+          "latency_ms": 4901,
+          "reason": "source_fields_neutralized",
+          "estimated_cost_usd": 0.00028038
+        }
+      ],
+      "input_tokens": 1653,
+      "output_tokens": 755,
+      "latency_ms": 4915,
+      "request_latency_ms": 4916,
+      "estimated_cost_usd": 0.00028038,
+      "status": 200,
+      "reason": "success",
+      "usage_complete": true,
+      "cost_complete": true
+    }
+  },
+  {
+    "timestamp_utc": "2026-10-21T18:44:21.207000+00:00",
+    "telemetry": {
+      "event": "agenda_parse",
+      "request_id": "a6af362b-5121-4977-bd33-6c5b96bad6bb",
+      "model": "amazon.nova-lite-v1:0",
+      "prompt_version": "agenda-v3",
+      "provider_call_count": 2,
+      "repair_attempts": 1,
+      "attempts": [
+        {
+          "number": 1,
+          "input_tokens": 1563,
+          "output_tokens": 16,
+          "latency_ms": 489,
+          "reason": "validation_failed",
+          "estimated_cost_usd": 9.762e-5
+        },
+        {
+          "number": 2,
+          "input_tokens": 1633,
+          "output_tokens": 24,
+          "latency_ms": 498,
+          "reason": "success",
+          "estimated_cost_usd": 0.00010374
+        }
+      ],
+      "input_tokens": 3196,
+      "output_tokens": 40,
+      "latency_ms": 1045,
+      "request_latency_ms": 1045,
+      "estimated_cost_usd": 0.00020136,
+      "status": 200,
+      "reason": "success",
+      "usage_complete": true,
+      "cost_complete": true
+    }
+  },
+  {
+    "timestamp_utc": "2026-10-21T18:46:41.666000+00:00",
+    "telemetry": {
+      "event": "agenda_parse",
+      "request_id": "e2d2f0e7-7d96-495c-93f2-cf85342ae622",
+      "model": "amazon.nova-lite-v1:0",
+      "prompt_version": "agenda-v3",
+      "provider_call_count": 2,
+      "repair_attempts": 1,
+      "attempts": [
+        {
+          "number": 1,
+          "input_tokens": 1578,
+          "output_tokens": 247,
+          "latency_ms": 1979,
+          "reason": "validation_failed",
+          "estimated_cost_usd": 0.00015396
+        },
+        {
+          "number": 2,
+          "input_tokens": 1846,
+          "output_tokens": 170,
+          "latency_ms": 1388,
+          "reason": "validation_failed",
+          "estimated_cost_usd": 0.00015156
+        }
+      ],
+      "input_tokens": 3424,
+      "output_tokens": 417,
+      "latency_ms": 3435,
+      "request_latency_ms": 3435,
+      "estimated_cost_usd": 0.00030552,
+      "status": 422,
+      "reason": "validation_exhausted",
+      "usage_complete": true,
+      "cost_complete": true
+    }
+  },
+  {
+    "timestamp_utc": "2026-10-21T18:46:59.811000+00:00",
+    "telemetry": {
+      "event": "agenda_parse",
+      "request_id": "ef93ad49-2e4f-4614-94ff-401a417712e0",
+      "model": "amazon.nova-lite-v1:0",
+      "prompt_version": "agenda-v3",
+      "provider_call_count": 2,
+      "repair_attempts": 1,
+      "attempts": [
+        {
+          "number": 1,
+          "input_tokens": 1578,
+          "output_tokens": 247,
+          "latency_ms": 1840,
+          "reason": "validation_failed",
+          "estimated_cost_usd": 0.00015396
+        },
+        {
+          "number": 2,
+          "input_tokens": 1846,
+          "output_tokens": 170,
+          "latency_ms": 1391,
+          "reason": "validation_failed",
+          "estimated_cost_usd": 0.00015156
+        }
+      ],
+      "input_tokens": 3424,
+      "output_tokens": 417,
+      "latency_ms": 3288,
+      "request_latency_ms": 3289,
+      "estimated_cost_usd": 0.00030552,
+      "status": 422,
+      "reason": "validation_exhausted",
+      "usage_complete": true,
+      "cost_complete": true
+    }
+  },
+  {
+    "timestamp_utc": "2026-10-21T18:52:51.751000+00:00",
+    "telemetry": {
+      "event": "agenda_parse",
+      "request_id": "ea32ecb5-56c4-4924-ab75-78a8f6662344",
+      "model": "amazon.nova-lite-v1:0",
+      "prompt_version": "agenda-v3",
+      "provider_call_count": 0,
+      "repair_attempts": 0,
+      "attempts": [],
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "latency_ms": 0,
+      "request_latency_ms": 7,
+      "estimated_cost_usd": 0.0,
+      "status": 422,
+      "reason": "source_instruction_rejected",
+      "usage_complete": true,
+      "cost_complete": true
+    }
+  },
+  {
+    "timestamp_utc": "2026-10-21T18:54:18.721000+00:00",
+    "telemetry": {
+      "event": "agenda_parse",
+      "request_id": "5c265b94-cc18-4713-acd4-0240191d5bb8",
+      "model": "amazon.nova-lite-v1:0",
+      "prompt_version": "agenda-v3",
+      "provider_call_count": 0,
+      "repair_attempts": 0,
+      "attempts": [],
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "latency_ms": 0,
+      "request_latency_ms": 1,
+      "estimated_cost_usd": 0.0,
+      "status": 422,
+      "reason": "source_instruction_rejected",
+      "usage_complete": true,
+      "cost_complete": true
+    }
+  }
+]

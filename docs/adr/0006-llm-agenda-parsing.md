@@ -4,7 +4,7 @@ Status: implemented and deployed. As verified October 21, 2026, backend/migratio
 frontend and agenda-v3 are released; parser is enabled. The user reports a successful
 24-second correction-and-Save demo. Real v3 success telemetry exists; earlier provider
 errors and unknown failed-call costs remain unresolved. V2's live injection failed;
-v3's matching live injection result and v2 actual JSON are missing. Instructor acceptance
+V3's exact injection was subsequently rejected before inference in two live requests; final v3 extraction/validation gaps remain. V2 actual JSON and final v3 Case4 bodies are missing. Instructor acceptance
 of Nova remains pending. See agenda-evaluation.md and submission/lab6/README.md.
 
 ## Context
