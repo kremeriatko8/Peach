@@ -60,3 +60,13 @@ HCP plan this can trigger. Separately authorize the temporary HCP workspace-only
 gate override. Keep main unmodified and the PR unmerged. Follow
 [the first-preview instructions](terraform-first-preview.md); require exactly 41
 imports and zero adds/changes/destroys before considering retention and detachment.
+
+## Publication CI portability correction
+
+The first GitHub Linux validation run downloaded the signed AWS 6.70.0 provider,
+but validation failed because the readonly lockfile contained only the Mac h1
+package hash. Generated the additional linux_amd64 h1 hash with Terraform's
+`providers lock -platform=linux_amd64` in an isolated temporary directory.
+Terraform verified the package as signed by HashiCorp. The correction adds one
+platform hash; provider version, existing hashes, gate and infrastructure source
+are unchanged. No plan, backend initialization or cloud operation was used.
