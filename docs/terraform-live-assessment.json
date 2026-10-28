@@ -1,0 +1,2068 @@
+{
+  "status": "read-only-assessment-not-ready-for-migration",
+  "observed_at_utc": "2026-10-27T06:57:58.968806+00:00",
+  "account_id": "968053399627",
+  "region": "us-east-1",
+  "identities": {
+    "default": "arn:aws:iam::968053399627:user/sofiia",
+    "peach-reports-deploy": "arn:aws:sts::968053399627:assumed-role/peach-reports-deploy/botocore-session-1793084332"
+  },
+  "stacks": {
+    "auth": {
+      "StackName": "peach-auth",
+      "StackId": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-auth/bfe6d760-be6f-11f1-a3c9-0e8f87c1c059",
+      "StackStatus": "UPDATE_COMPLETE",
+      "CreationTime": "2026-10-02 14:44:19.624000+00:00",
+      "LastUpdatedTime": "2026-10-02 15:04:23.531000+00:00",
+      "EnableTerminationProtection": false,
+      "Tags": [],
+      "parameters": {
+        "ProjectName": "peach",
+        "GoogleClientId": "447848538444-j9cdc67f7vqiccd00r9m7k4kh48qckvr.apps.googleusercontent.com",
+        "GoogleClientSecret": "[REDACTED]",
+        "CognitoDomainPrefix": "peach-auth-diby4tampbgny",
+        "LocalhostOrigin": "http://localhost:3000",
+        "FrontendOrigin": "https://diby4tampbgny.cloudfront.net"
+      },
+      "outputs": {
+        "UserPoolClientId": "4vscaj9gks4n63ds52gbhi5ggn",
+        "FrontendCallbackUrl": "https://diby4tampbgny.cloudfront.net/auth/callback/",
+        "UserPoolId": "us-east-1_bs7cWxhJp",
+        "FrontendLogoutUrl": "https://diby4tampbgny.cloudfront.net/",
+        "Authority": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_bs7cWxhJp",
+        "GoogleFederationEnabled": "true",
+        "GoogleAuthorizedRedirectUri": "https://peach-auth-diby4tampbgny.auth.us-east-1.amazoncognito.com/oauth2/idpresponse",
+        "LocalhostCallbackUrl": "http://localhost:3000/auth/callback/",
+        "CognitoDomainPrefix": "peach-auth-diby4tampbgny",
+        "GoogleAuthorizedJavaScriptOrigin": "https://peach-auth-diby4tampbgny.auth.us-east-1.amazoncognito.com",
+        "LocalhostLogoutUrl": "http://localhost:3000/",
+        "CognitoDomain": "https://peach-auth-diby4tampbgny.auth.us-east-1.amazoncognito.com"
+      },
+      "resources": [
+        {
+          "LogicalResourceId": "GoogleIdentityProvider",
+          "PhysicalResourceId": "Google",
+          "ResourceType": "AWS::Cognito::UserPoolIdentityProvider",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "ManagedLoginBranding",
+          "PhysicalResourceId": "us-east-1_bs7cWxhJp|aa403fbb-692c-4af3-b194-f07246c5edae",
+          "ResourceType": "AWS::Cognito::ManagedLoginBranding",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "UserPool",
+          "PhysicalResourceId": "us-east-1_bs7cWxhJp",
+          "ResourceType": "AWS::Cognito::UserPool",
+          "ResourceStatus": "UPDATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "UserPoolClient",
+          "PhysicalResourceId": "4vscaj9gks4n63ds52gbhi5ggn",
+          "ResourceType": "AWS::Cognito::UserPoolClient",
+          "ResourceStatus": "UPDATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "UserPoolDomain",
+          "PhysicalResourceId": "peach-auth-diby4tampbgny",
+          "ResourceType": "AWS::Cognito::UserPoolDomain",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        }
+      ],
+      "retained_count": 0,
+      "template_resource_count": 5,
+      "live_template_matches_local_except_retention": true,
+      "property_differences_from_local": []
+    },
+    "ai": {
+      "StackName": "peach-ai",
+      "StackId": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-ai/d3633130-cbad-11f1-87f9-0e1e20047f1b",
+      "StackStatus": "UPDATE_COMPLETE",
+      "CreationTime": "2026-10-19 11:11:26.214000+00:00",
+      "LastUpdatedTime": "2026-10-19 19:41:57.528000+00:00",
+      "EnableTerminationProtection": false,
+      "Tags": [],
+      "Capabilities": [
+        "CAPABILITY_IAM"
+      ],
+      "parameters": {
+        "CognitoJwksJson": "{\"keys\":[{\"kid\":\"iLZQEWUAGQntzc8JGmZMsAd3oXlp5C+Pts+fff/og8Q=\",\"kty\":\"RSA\",\"alg\":\"RS256\",\"use\":\"sig\",\"n\":\"4vTMlTx8UHbmaoNhlOb6PMvcgVrIHGYETluisHfg9k-BwTOzGn93mBOs7H4crjRaL_ByXlfUA6Ur3rTjRYx_k0WuDIlnbO3dlgFNVxLOcOLsEURudop9yhv4GDOA4yOgRSt7bKriEXjFiGVFLOP_Q5w8q-DfUxuAZkpFOxOK-ytkQCokhK4kP90El_ADyvJ9DtzJAIue9OwtlcihDAS7Lv1q6iYMGvpfpwHLUv6oUZts3wGUVagi_cPj69Z1oBK3iRUKFcINiWE_oqs9EA-DXAnIIN75ftBpJOW2eNkeqFe-bCyA9j-AwwVz7j0cW6YDYOUQVC2F3Tm-MYo3x5m-XQ\",\"e\":\"AQAB\"},{\"kid\":\"YK2CH5jcx0U0z7WmAty6koG5akx4k7MKfElx26a9eV0=\",\"kty\":\"RSA\",\"alg\":\"RS256\",\"use\":\"sig\",\"n\":\"9HgktIh6Icni7LgsaOzB8_QvoViIq3Dbva73QPyUN_vnI8VYihAtN8aUyg8oAKCh45VaQPDW220s64qxQylvlDvTPfoW_7Q3fvghpUdgw0jF_vy8tSu23zVuejVMI-I4Vj3VD2AWBwUY7FJ5s1YURUDtSqyiEkMN6dG48BxSzlt0JO4dIIisFdE1tIPpylIBvSfoZLoONNrMJAzIzXPtvKR6YEAUzGE7SpC8zGfyRGCyOj_yvnNQbjRSh9NadyM-ltvUwfMkJmMXg2ZGWwlQXK1P2kbSlp474_08vKRYwfb0C-MXkLyA8BSn_wOChMkd_5Qk0KpkW7VhkWfKJeR0Pw\",\"e\":\"AQAB\"}]}",
+        "ParserModel": "amazon.nova-lite-v1:0",
+        "CognitoClientId": "4vscaj9gks4n63ds52gbhi5ggn",
+        "Architecture": "arm64",
+        "ProjectName": "peach",
+        "InferenceResourceArn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0",
+        "InputUsdPerMillion": "0.06",
+        "CognitoAuthority": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_bs7cWxhJp",
+        "FrontendOrigins": "https://diby4tampbgny.cloudfront.net",
+        "ParserEnabled": "true",
+        "OutputUsdPerMillion": "0.24",
+        "ImageUri": "968053399627.dkr.ecr.us-east-1.amazonaws.com/peach-backend@sha256:8bac6eded73b84a482bf307b4694ab7151ecc5ec3533701739872cbff8036da6"
+      },
+      "outputs": {
+        "FunctionName": "peach-agenda-parser",
+        "ParserUrl": "https://32ovoghmgblgnfeiz3knudesn40vuziu.lambda-url.us-east-1.on.aws/"
+      },
+      "resources": [
+        {
+          "LogicalResourceId": "InvokePermission",
+          "PhysicalResourceId": "peach-ai-InvokePermission-1aneGP8egfuW",
+          "ResourceType": "AWS::Lambda::Permission",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "LogGroup",
+          "PhysicalResourceId": "/aws/lambda/peach-agenda-parser",
+          "ResourceType": "AWS::Logs::LogGroup",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "Parser",
+          "PhysicalResourceId": "peach-agenda-parser",
+          "ResourceType": "AWS::Lambda::Function",
+          "ResourceStatus": "UPDATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "Role",
+          "PhysicalResourceId": "peach-ai-Role-VyBHkDA80Fxu",
+          "ResourceType": "AWS::IAM::Role",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "Url",
+          "PhysicalResourceId": "arn:aws:lambda:us-east-1:968053399627:function:peach-agenda-parser",
+          "ResourceType": "AWS::Lambda::Url",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "UrlPermission",
+          "PhysicalResourceId": "peach-ai-UrlPermission-qhG0kDsGDpX5",
+          "ResourceType": "AWS::Lambda::Permission",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        }
+      ],
+      "retained_count": 0,
+      "template_resource_count": 6,
+      "live_template_matches_local_except_retention": true,
+      "property_differences_from_local": []
+    },
+    "reports": {
+      "StackName": "peach-reports",
+      "StackId": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/bbb6bbf0-c4f6-11f1-a09e-0affe62532eb",
+      "StackStatus": "CREATE_COMPLETE",
+      "CreationTime": "2026-10-10 22:05:41.639000+00:00",
+      "LastUpdatedTime": "2026-10-10 22:09:35.469000+00:00",
+      "EnableTerminationProtection": false,
+      "Tags": [],
+      "Capabilities": [
+        "CAPABILITY_NAMED_IAM"
+      ],
+      "parameters": {
+        "DatabaseUrl": "[REDACTED]",
+        "ReportScopeId": "efc72484-50e1-4111-b405-4da7c06428a8",
+        "ReportTimezone": "Europe/Kyiv",
+        "Architecture": "arm64",
+        "ProjectName": "peach",
+        "BackendFunctionSecurityGroupIds": "sg-0545f0ff2d3d0ad76",
+        "ImageUri": "968053399627.dkr.ecr.us-east-1.amazonaws.com/peach-backend@sha256:ac2d47b04a705075df2e2c09fc0106c771f423fae008d7a7df2d775541935629",
+        "SubnetIds": "subnet-0ce865e3d6a942f32,subnet-03563e6593c729e87,subnet-0b155a6dfcdf112f6,subnet-0d85830f27e1de8a8,subnet-05cb823b915b8c589",
+        "ReportFromEmail": "[REDACTED]",
+        "ReportOwnerSub": "[REDACTED]",
+        "VpcId": "vpc-0def9c995c9c73f75",
+        "RouteTableIds": "rtb-0fb1d48c2f3f092c2",
+        "ReportRecipientEmail": "[REDACTED]",
+        "AllowDirectEvents": "false"
+      },
+      "outputs": {
+        "MailStateTableName": "peach-report-mail-state",
+        "WorkQueueArn": "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+        "WorkQueueUrl": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-work",
+        "BuilderDlqUrl": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-builder-dlq",
+        "MailerFunctionName": "peach-report-mailer",
+        "SchedulerDlqUrl": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-scheduler-dlq",
+        "MailerFailureQueueUrl": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-mailer-failures",
+        "ReportsBucketName": "peach-reports-968053399627-us-east-1",
+        "ScheduleGroupName": "peach-reports",
+        "BuilderFunctionName": "peach-report-builder",
+        "ScheduleName": "peach-weekly-report"
+      },
+      "resources": [
+        {
+          "LogicalResourceId": "Builder",
+          "PhysicalResourceId": "peach-report-builder",
+          "ResourceType": "AWS::Lambda::Function",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "BuilderDlq",
+          "PhysicalResourceId": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-builder-dlq",
+          "ResourceType": "AWS::SQS::Queue",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "BuilderLogGroup",
+          "PhysicalResourceId": "/aws/lambda/peach-report-builder",
+          "ResourceType": "AWS::Logs::LogGroup",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "BuilderMapping",
+          "PhysicalResourceId": "3910d1ed-06a8-4867-a77e-9192b19d8c6d",
+          "ResourceType": "AWS::Lambda::EventSourceMapping",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "BuilderRole",
+          "PhysicalResourceId": "peach-report-builder",
+          "ResourceType": "AWS::IAM::Role",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "MailState",
+          "PhysicalResourceId": "peach-report-mail-state",
+          "ResourceType": "AWS::DynamoDB::Table",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Retain",
+          "UpdateReplacePolicy": "Retain"
+        },
+        {
+          "LogicalResourceId": "Mailer",
+          "PhysicalResourceId": "peach-report-mailer",
+          "ResourceType": "AWS::Lambda::Function",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "MailerAsyncConfig",
+          "PhysicalResourceId": "peach-report-mailer|$LATEST",
+          "ResourceType": "AWS::Lambda::EventInvokeConfig",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "MailerFailureQueue",
+          "PhysicalResourceId": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-mailer-failures",
+          "ResourceType": "AWS::SQS::Queue",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "MailerLogGroup",
+          "PhysicalResourceId": "/aws/lambda/peach-report-mailer",
+          "ResourceType": "AWS::Logs::LogGroup",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "MailerRole",
+          "PhysicalResourceId": "peach-report-mailer",
+          "ResourceType": "AWS::IAM::Role",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "MailerS3Permission",
+          "PhysicalResourceId": "peach-reports-MailerS3Permission-Qbsido0QF2oJ",
+          "ResourceType": "AWS::Lambda::Permission",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "ReportsBucket",
+          "PhysicalResourceId": "peach-reports-968053399627-us-east-1",
+          "ResourceType": "AWS::S3::Bucket",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Retain",
+          "UpdateReplacePolicy": "Retain"
+        },
+        {
+          "LogicalResourceId": "ReportsBucketPolicy",
+          "PhysicalResourceId": "peach-reports-968053399627-us-east-1",
+          "ResourceType": "AWS::S3::BucketPolicy",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "S3Endpoint",
+          "PhysicalResourceId": "vpce-0e24aa58428a2f072",
+          "ResourceType": "AWS::EC2::VPCEndpoint",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "ScheduleGroup",
+          "PhysicalResourceId": "peach-reports",
+          "ResourceType": "AWS::Scheduler::ScheduleGroup",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "SchedulerDlq",
+          "PhysicalResourceId": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-scheduler-dlq",
+          "ResourceType": "AWS::SQS::Queue",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "SchedulerRole",
+          "PhysicalResourceId": "peach-report-scheduler",
+          "ResourceType": "AWS::IAM::Role",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "WeeklySchedule",
+          "PhysicalResourceId": "peach-weekly-report",
+          "ResourceType": "AWS::Scheduler::Schedule",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        },
+        {
+          "LogicalResourceId": "WorkQueue",
+          "PhysicalResourceId": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-work",
+          "ResourceType": "AWS::SQS::Queue",
+          "ResourceStatus": "CREATE_COMPLETE",
+          "DriftInformation": {
+            "StackResourceDriftStatus": "NOT_CHECKED"
+          },
+          "DeletionPolicy": "Delete (implicit)",
+          "UpdateReplacePolicy": "Delete (implicit)"
+        }
+      ],
+      "retained_count": 2,
+      "template_resource_count": 20,
+      "live_template_matches_local_except_retention": true,
+      "property_differences_from_local": []
+    }
+  },
+  "resources": {
+    "lambda": {
+      "Builder": {
+        "FunctionName": "peach-report-builder",
+        "FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder",
+        "Role": "arn:aws:iam::968053399627:role/peach-report-builder",
+        "LastModified": "2026-10-10T22:11:04.198+0000",
+        "State": "Active",
+        "LastUpdateStatus": "Successful",
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 512,
+        "Timeout": 120,
+        "PackageType": "Image",
+        "VpcConfig": {
+          "SubnetIds": [
+            "subnet-0ce865e3d6a942f32",
+            "subnet-03563e6593c729e87",
+            "subnet-0b155a6dfcdf112f6",
+            "subnet-0d85830f27e1de8a8",
+            "subnet-05cb823b915b8c589"
+          ],
+          "SecurityGroupIds": [
+            "sg-0545f0ff2d3d0ad76"
+          ],
+          "VpcId": "vpc-0def9c995c9c73f75",
+          "Ipv6AllowedForDualStack": false
+        },
+        "LoggingConfig": {
+          "LogFormat": "Text",
+          "LogGroup": "/aws/lambda/peach-report-builder"
+        },
+        "ImageConfigResponse": {
+          "ImageConfig": {
+            "Command": [
+              "app.reporting.builder.handler"
+            ]
+          }
+        },
+        "EphemeralStorage": {
+          "Size": 512
+        },
+        "TracingConfig": {
+          "Mode": "PassThrough"
+        },
+        "RevisionId": "c1467656-df0d-40a4-b0f1-2b38c18cea60",
+        "environment_keys": [
+          "APP_ENV",
+          "DATABASE_URL",
+          "DB_POOLING",
+          "REPORT_ALLOW_DIRECT",
+          "REPORT_BUCKET",
+          "REPORT_OWNER_SUB",
+          "REPORT_QUEUE_ARN",
+          "REPORT_SCOPE_ID",
+          "REPORT_TIMEZONE"
+        ],
+        "public_environment": {
+          "APP_ENV": "production",
+          "DB_POOLING": "false",
+          "REPORT_TIMEZONE": "Europe/Kyiv",
+          "REPORT_BUCKET": "peach-reports-968053399627-us-east-1",
+          "REPORT_QUEUE_ARN": "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+          "REPORT_ALLOW_DIRECT": "false"
+        },
+        "private_environment_present": {
+          "DATABASE_URL": true,
+          "REPORT_SCOPE_ID": true,
+          "REPORT_OWNER_SUB": true
+        },
+        "jwks_key_ids": [],
+        "code": {
+          "ImageUri": "968053399627.dkr.ecr.us-east-1.amazonaws.com/peach-backend@sha256:ac2d47b04a705075df2e2c09fc0106c771f423fae008d7a7df2d775541935629",
+          "ResolvedImageUri": "968053399627.dkr.ecr.us-east-1.amazonaws.com/peach-backend@sha256:ac2d47b04a705075df2e2c09fc0106c771f423fae008d7a7df2d775541935629"
+        },
+        "tags": {
+          "aws:cloudformation:stack-name": "peach-reports",
+          "aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/bbb6bbf0-c4f6-11f1-a09e-0affe62532eb",
+          "aws:cloudformation:logical-id": "Builder",
+          "PROJECT_NAME": "peach"
+        },
+        "resource_policy": null,
+        "concurrency": {},
+        "event_source_mappings": [
+          {
+            "UUID": "3910d1ed-06a8-4867-a77e-9192b19d8c6d",
+            "BatchSize": 1,
+            "MaximumBatchingWindowInSeconds": 0,
+            "EventSourceArn": "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+            "ScalingConfig": {
+              "MaximumConcurrency": 2
+            },
+            "FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder",
+            "LastModified": "2026-10-11 01:11:13.111000+03:00",
+            "State": "Enabled",
+            "StateTransitionReason": "USER_INITIATED",
+            "FunctionResponseTypes": [],
+            "EventSourceMappingArn": "arn:aws:lambda:us-east-1:968053399627:event-source-mapping:3910d1ed-06a8-4867-a77e-9192b19d8c6d"
+          }
+        ]
+      },
+      "Mailer": {
+        "FunctionName": "peach-report-mailer",
+        "FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer",
+        "Role": "arn:aws:iam::968053399627:role/peach-report-mailer",
+        "LastModified": "2026-10-10T22:11:03.056+0000",
+        "State": "Active",
+        "LastUpdateStatus": "Successful",
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 256,
+        "Timeout": 60,
+        "PackageType": "Image",
+        "LoggingConfig": {
+          "LogFormat": "Text",
+          "LogGroup": "/aws/lambda/peach-report-mailer"
+        },
+        "ImageConfigResponse": {
+          "ImageConfig": {
+            "Command": [
+              "app.reporting.mailer.handler"
+            ]
+          }
+        },
+        "EphemeralStorage": {
+          "Size": 512
+        },
+        "TracingConfig": {
+          "Mode": "PassThrough"
+        },
+        "RevisionId": "fa55d38c-e80e-423d-83f6-62a5cda823bf",
+        "environment_keys": [
+          "REPORT_BUCKET",
+          "REPORT_DEDUP_TABLE",
+          "REPORT_FROM_EMAIL",
+          "REPORT_RECIPIENT_EMAIL",
+          "REPORT_SCOPE_ID",
+          "REPORT_TIMEZONE"
+        ],
+        "public_environment": {
+          "REPORT_TIMEZONE": "Europe/Kyiv",
+          "REPORT_BUCKET": "peach-reports-968053399627-us-east-1",
+          "REPORT_DEDUP_TABLE": "peach-report-mail-state"
+        },
+        "private_environment_present": {
+          "REPORT_FROM_EMAIL": true,
+          "REPORT_RECIPIENT_EMAIL": true,
+          "REPORT_SCOPE_ID": true
+        },
+        "jwks_key_ids": [],
+        "code": {
+          "ImageUri": "968053399627.dkr.ecr.us-east-1.amazonaws.com/peach-backend@sha256:ac2d47b04a705075df2e2c09fc0106c771f423fae008d7a7df2d775541935629",
+          "ResolvedImageUri": "968053399627.dkr.ecr.us-east-1.amazonaws.com/peach-backend@sha256:ac2d47b04a705075df2e2c09fc0106c771f423fae008d7a7df2d775541935629"
+        },
+        "tags": {
+          "aws:cloudformation:stack-name": "peach-reports",
+          "aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/bbb6bbf0-c4f6-11f1-a09e-0affe62532eb",
+          "aws:cloudformation:logical-id": "Mailer",
+          "PROJECT_NAME": "peach"
+        },
+        "resource_policy": {
+          "Version": "2012-10-17",
+          "Id": "default",
+          "Statement": [
+            {
+              "Sid": "peach-reports-MailerS3Permission-Qbsido0QF2oJ",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "s3.amazonaws.com"
+              },
+              "Action": "lambda:InvokeFunction",
+              "Resource": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceAccount": "968053399627"
+                },
+                "ArnLike": {
+                  "AWS:SourceArn": "arn:aws:s3:::peach-reports-968053399627-us-east-1"
+                }
+              }
+            }
+          ]
+        },
+        "concurrency": {},
+        "async_config": {
+          "FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer:$LATEST",
+          "MaximumRetryAttempts": 2,
+          "MaximumEventAgeInSeconds": 21600,
+          "DestinationConfig": {
+            "OnSuccess": {},
+            "OnFailure": {
+              "Destination": "arn:aws:sqs:us-east-1:968053399627:peach-report-mailer-failures"
+            }
+          }
+        }
+      },
+      "Parser": {
+        "FunctionName": "peach-agenda-parser",
+        "FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-agenda-parser",
+        "Role": "arn:aws:iam::968053399627:role/peach-ai-Role-VyBHkDA80Fxu",
+        "LastModified": "2026-10-19T19:42:02.000+0000",
+        "State": "Active",
+        "LastUpdateStatus": "Successful",
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 512,
+        "Timeout": 30,
+        "PackageType": "Image",
+        "VpcConfig": {
+          "SubnetIds": [],
+          "SecurityGroupIds": [],
+          "VpcId": "",
+          "Ipv6AllowedForDualStack": false
+        },
+        "LoggingConfig": {
+          "LogFormat": "Text",
+          "LogGroup": "/aws/lambda/peach-agenda-parser"
+        },
+        "ImageConfigResponse": {
+          "ImageConfig": {
+            "Command": [
+              "app.ai.agenda_lambda.handler"
+            ]
+          }
+        },
+        "EphemeralStorage": {
+          "Size": 512
+        },
+        "TracingConfig": {
+          "Mode": "PassThrough"
+        },
+        "RevisionId": "f3bee65f-98f4-47ec-b019-43d65a5790fb",
+        "environment_keys": [
+          "APP_ENV",
+          "COGNITO_AUTHORITY",
+          "COGNITO_CLIENT_ID",
+          "COGNITO_JWKS_JSON",
+          "PARSER_ENABLED",
+          "PARSER_INPUT_USD_PER_MILLION",
+          "PARSER_MAX_TOKENS",
+          "PARSER_MODEL",
+          "PARSER_OUTPUT_USD_PER_MILLION",
+          "PARSER_REQUESTS_PER_MINUTE"
+        ],
+        "public_environment": {
+          "APP_ENV": "production",
+          "COGNITO_AUTHORITY": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_bs7cWxhJp",
+          "COGNITO_CLIENT_ID": "4vscaj9gks4n63ds52gbhi5ggn",
+          "PARSER_MODEL": "amazon.nova-lite-v1:0",
+          "PARSER_ENABLED": "true",
+          "PARSER_MAX_TOKENS": "2048",
+          "PARSER_REQUESTS_PER_MINUTE": "3",
+          "PARSER_INPUT_USD_PER_MILLION": "0.06",
+          "PARSER_OUTPUT_USD_PER_MILLION": "0.24"
+        },
+        "private_environment_present": {},
+        "jwks_key_ids": [
+          "iLZQEWUAGQntzc8JGmZMsAd3oXlp5C+Pts+fff/og8Q=",
+          "YK2CH5jcx0U0z7WmAty6koG5akx4k7MKfElx26a9eV0="
+        ],
+        "code": {
+          "ImageUri": "968053399627.dkr.ecr.us-east-1.amazonaws.com/peach-backend@sha256:8bac6eded73b84a482bf307b4694ab7151ecc5ec3533701739872cbff8036da6",
+          "ResolvedImageUri": "968053399627.dkr.ecr.us-east-1.amazonaws.com/peach-backend@sha256:8bac6eded73b84a482bf307b4694ab7151ecc5ec3533701739872cbff8036da6"
+        },
+        "tags": {
+          "aws:cloudformation:stack-name": "peach-ai",
+          "aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-ai/d3633130-cbad-11f1-87f9-0e1e20047f1b",
+          "aws:cloudformation:logical-id": "Parser"
+        },
+        "resource_policy": {
+          "Version": "2012-10-17",
+          "Id": "default",
+          "Statement": [
+            {
+              "Sid": "peach-ai-UrlPermission-qhG0kDsGDpX5",
+              "Effect": "Allow",
+              "Principal": "*",
+              "Action": "lambda:InvokeFunctionUrl",
+              "Resource": "arn:aws:lambda:us-east-1:968053399627:function:peach-agenda-parser",
+              "Condition": {
+                "StringEquals": {
+                  "lambda:FunctionUrlAuthType": "NONE"
+                }
+              }
+            },
+            {
+              "Sid": "peach-ai-InvokePermission-1aneGP8egfuW",
+              "Effect": "Allow",
+              "Principal": "*",
+              "Action": "lambda:InvokeFunction",
+              "Resource": "arn:aws:lambda:us-east-1:968053399627:function:peach-agenda-parser",
+              "Condition": {
+                "Bool": {
+                  "lambda:InvokedViaFunctionUrl": "true"
+                }
+              }
+            }
+          ]
+        },
+        "concurrency": {},
+        "url": {
+          "FunctionUrl": "https://32ovoghmgblgnfeiz3knudesn40vuziu.lambda-url.us-east-1.on.aws/",
+          "FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-agenda-parser",
+          "AuthType": "NONE",
+          "Cors": {
+            "AllowHeaders": [
+              "authorization",
+              "content-type"
+            ],
+            "AllowMethods": [
+              "POST"
+            ],
+            "AllowOrigins": [
+              "https://diby4tampbgny.cloudfront.net"
+            ],
+            "MaxAge": 300
+          },
+          "InvokeMode": "BUFFERED"
+        }
+      }
+    },
+    "iam_roles": {
+      "peach-report-builder": {
+        "RoleName": "peach-report-builder",
+        "Arn": "arn:aws:iam::968053399627:role/peach-report-builder",
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "MaxSessionDuration": 3600,
+        "Tags": [
+          {
+            "Key": "PROJECT_NAME",
+            "Value": "peach"
+          }
+        ],
+        "inline_policies": {
+          "report-builder": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Action": [
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents"
+                ],
+                "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder:*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "ec2:CreateNetworkInterface",
+                  "ec2:DescribeNetworkInterfaces",
+                  "ec2:DescribeSubnets",
+                  "ec2:DeleteNetworkInterface",
+                  "ec2:AssignPrivateIpAddresses",
+                  "ec2:UnassignPrivateIpAddresses"
+                ],
+                "Resource": "*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "sqs:ReceiveMessage",
+                  "sqs:DeleteMessage",
+                  "sqs:GetQueueAttributes"
+                ],
+                "Resource": "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+                "Effect": "Allow"
+              },
+              {
+                "Action": "s3:PutObject",
+                "Resource": "arn:aws:s3:::peach-reports-968053399627-us-east-1/reports/efc72484-50e1-4111-b405-4da7c06428a8/*.csv",
+                "Effect": "Allow"
+              }
+            ]
+          }
+        },
+        "attached_policies": []
+      },
+      "peach-report-scheduler": {
+        "RoleName": "peach-report-scheduler",
+        "Arn": "arn:aws:iam::968053399627:role/peach-report-scheduler",
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "scheduler.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": "968053399627"
+                },
+                "ArnEquals": {
+                  "aws:SourceArn": "arn:aws:scheduler:us-east-1:968053399627:schedule-group/peach-reports"
+                }
+              }
+            }
+          ]
+        },
+        "MaxSessionDuration": 3600,
+        "Tags": [
+          {
+            "Key": "PROJECT_NAME",
+            "Value": "peach"
+          }
+        ],
+        "inline_policies": {
+          "send-report-work": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Action": "sqs:SendMessage",
+                "Resource": [
+                  "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+                  "arn:aws:sqs:us-east-1:968053399627:peach-report-scheduler-dlq"
+                ],
+                "Effect": "Allow"
+              }
+            ]
+          }
+        },
+        "attached_policies": []
+      },
+      "peach-report-mailer": {
+        "RoleName": "peach-report-mailer",
+        "Arn": "arn:aws:iam::968053399627:role/peach-report-mailer",
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "MaxSessionDuration": 3600,
+        "Tags": [
+          {
+            "Key": "PROJECT_NAME",
+            "Value": "peach"
+          }
+        ],
+        "inline_policies": {
+          "report-mailer": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Action": [
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents"
+                ],
+                "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer:*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::peach-reports-968053399627-us-east-1/reports/efc72484-50e1-4111-b405-4da7c06428a8/*.csv",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "dynamodb:UpdateItem",
+                  "dynamodb:GetItem"
+                ],
+                "Resource": "arn:aws:dynamodb:us-east-1:968053399627:table/peach-report-mail-state",
+                "Effect": "Allow"
+              },
+              {
+                "Condition": {
+                  "StringEquals": {
+                    "ses:FromAddress": "[REDACTED]"
+                  },
+                  "ForAllValues:StringEquals": {
+                    "ses:Recipients": "[REDACTED]"
+                  }
+                },
+                "Action": "ses:SendRawEmail",
+                "Resource": "arn:aws:ses:us-east-1:968053399627:identity/*",
+                "Effect": "Allow"
+              },
+              {
+                "Action": "sqs:SendMessage",
+                "Resource": "arn:aws:sqs:us-east-1:968053399627:peach-report-mailer-failures",
+                "Effect": "Allow"
+              }
+            ]
+          }
+        },
+        "attached_policies": []
+      },
+      "peach-ai-Role-VyBHkDA80Fxu": {
+        "RoleName": "peach-ai-Role-VyBHkDA80Fxu",
+        "Arn": "arn:aws:iam::968053399627:role/peach-ai-Role-VyBHkDA80Fxu",
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "MaxSessionDuration": 3600,
+        "PermissionsBoundary": {
+          "PermissionsBoundaryType": "Policy",
+          "PermissionsBoundaryArn": "arn:aws:iam::968053399627:policy/PeachAgendaParserBoundary"
+        },
+        "inline_policies": {
+          "parser": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Action": "bedrock:InvokeModel",
+                "Resource": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0",
+                "Effect": "Allow"
+              },
+              {
+                "Action": [
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents"
+                ],
+                "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-agenda-parser:*",
+                "Effect": "Allow"
+              }
+            ]
+          }
+        },
+        "attached_policies": []
+      }
+    },
+    "reports_bucket": {
+      "name": "peach-reports-968053399627-us-east-1",
+      "get_bucket_tagging": {
+        "TagSet": [
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "peach-reports"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "ReportsBucket"
+          },
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/bbb6bbf0-c4f6-11f1-a09e-0affe62532eb"
+          },
+          {
+            "Key": "PROJECT_NAME",
+            "Value": "peach"
+          }
+        ]
+      },
+      "get_public_access_block": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        }
+      },
+      "get_bucket_ownership_controls": {
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        }
+      },
+      "get_bucket_encryption": {
+        "ServerSideEncryptionConfiguration": {
+          "Rules": [
+            {
+              "ApplyServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              },
+              "BucketKeyEnabled": false,
+              "BlockedEncryptionTypes": {
+                "EncryptionType": [
+                  "SSE-C"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "get_bucket_lifecycle_configuration": {
+        "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K",
+        "Rules": [
+          {
+            "Expiration": {
+              "Days": 90
+            },
+            "ID": "expire-reports",
+            "Filter": {
+              "Prefix": "reports/"
+            },
+            "Status": "Enabled"
+          }
+        ]
+      },
+      "get_bucket_notification_configuration": {
+        "LambdaFunctionConfigurations": [
+          {
+            "Id": "N2JlZWExZTktODc0Yy00OGI1LTkyODUtOTJiNTBkNzQ4Njc1",
+            "LambdaFunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer",
+            "Events": [
+              "s3:ObjectCreated:*"
+            ],
+            "Filter": {
+              "Key": {
+                "FilterRules": [
+                  {
+                    "Name": "Prefix",
+                    "Value": "reports/"
+                  },
+                  {
+                    "Name": "Suffix",
+                    "Value": ".csv"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "get_bucket_versioning": {},
+      "get_bucket_policy": {
+        "Policy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                "arn:aws:s3:::peach-reports-968053399627-us-east-1",
+                "arn:aws:s3:::peach-reports-968053399627-us-east-1/*"
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "region_from_head_response": "us-east-1"
+    },
+    "queues": {
+      "BuilderDlq": {
+        "url": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-builder-dlq",
+        "attributes": {
+          "QueueArn": "arn:aws:sqs:us-east-1:968053399627:peach-report-builder-dlq",
+          "ApproximateNumberOfMessages": "0",
+          "ApproximateNumberOfMessagesNotVisible": "0",
+          "ApproximateNumberOfMessagesDelayed": "0",
+          "CreatedTimestamp": "1791670178",
+          "LastModifiedTimestamp": "1791670178",
+          "VisibilityTimeout": "30",
+          "MaximumMessageSize": "1048576",
+          "MessageRetentionPeriod": "1209600",
+          "DelaySeconds": "0",
+          "RedriveAllowPolicy": "{\"redrivePermission\":\"byQueue\",\"sourceQueueArns\":[\"arn:aws:sqs:us-east-1:968053399627:peach-report-work\"]}",
+          "ReceiveMessageWaitTimeSeconds": "0",
+          "SqsManagedSseEnabled": "true"
+        },
+        "tags": {
+          "PROJECT_NAME": "peach"
+        }
+      },
+      "WorkQueue": {
+        "url": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-work",
+        "attributes": {
+          "QueueArn": "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+          "ApproximateNumberOfMessages": "0",
+          "ApproximateNumberOfMessagesNotVisible": "0",
+          "ApproximateNumberOfMessagesDelayed": "0",
+          "CreatedTimestamp": "1791670180",
+          "LastModifiedTimestamp": "1791670180",
+          "VisibilityTimeout": "720",
+          "MaximumMessageSize": "1048576",
+          "MessageRetentionPeriod": "345600",
+          "DelaySeconds": "0",
+          "RedrivePolicy": "{\"deadLetterTargetArn\":\"arn:aws:sqs:us-east-1:968053399627:peach-report-builder-dlq\",\"maxReceiveCount\":3}",
+          "ReceiveMessageWaitTimeSeconds": "0",
+          "SqsManagedSseEnabled": "true"
+        },
+        "tags": {
+          "PROJECT_NAME": "peach"
+        }
+      },
+      "SchedulerDlq": {
+        "url": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-scheduler-dlq",
+        "attributes": {
+          "QueueArn": "arn:aws:sqs:us-east-1:968053399627:peach-report-scheduler-dlq",
+          "ApproximateNumberOfMessages": "0",
+          "ApproximateNumberOfMessagesNotVisible": "0",
+          "ApproximateNumberOfMessagesDelayed": "0",
+          "CreatedTimestamp": "1791670178",
+          "LastModifiedTimestamp": "1791670178",
+          "VisibilityTimeout": "30",
+          "MaximumMessageSize": "1048576",
+          "MessageRetentionPeriod": "1209600",
+          "DelaySeconds": "0",
+          "ReceiveMessageWaitTimeSeconds": "0",
+          "SqsManagedSseEnabled": "true"
+        },
+        "tags": {
+          "PROJECT_NAME": "peach"
+        }
+      },
+      "MailerFailureQueue": {
+        "url": "https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-mailer-failures",
+        "attributes": {
+          "QueueArn": "arn:aws:sqs:us-east-1:968053399627:peach-report-mailer-failures",
+          "ApproximateNumberOfMessages": "0",
+          "ApproximateNumberOfMessagesNotVisible": "0",
+          "ApproximateNumberOfMessagesDelayed": "0",
+          "CreatedTimestamp": "1791670178",
+          "LastModifiedTimestamp": "1791670178",
+          "VisibilityTimeout": "30",
+          "MaximumMessageSize": "1048576",
+          "MessageRetentionPeriod": "1209600",
+          "DelaySeconds": "0",
+          "ReceiveMessageWaitTimeSeconds": "0",
+          "SqsManagedSseEnabled": "true"
+        },
+        "tags": {
+          "PROJECT_NAME": "peach"
+        }
+      }
+    },
+    "mail_state": {
+      "TableName": "peach-report-mail-state",
+      "TableArn": "arn:aws:dynamodb:us-east-1:968053399627:table/peach-report-mail-state",
+      "TableStatus": "ACTIVE",
+      "KeySchema": [
+        {
+          "AttributeName": "report_id",
+          "KeyType": "HASH"
+        }
+      ],
+      "AttributeDefinitions": [
+        {
+          "AttributeName": "report_id",
+          "AttributeType": "S"
+        }
+      ],
+      "BillingModeSummary": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "LastUpdateToPayPerRequestDateTime": "2026-10-11 01:09:40.384000+03:00"
+      },
+      "SSEDescription": {
+        "Status": "ENABLED",
+        "SSEType": "KMS",
+        "KMSMasterKeyArn": "arn:aws:kms:us-east-1:968053399627:key/ca6609f6-9d47-4344-8e37-81d176415ac0"
+      },
+      "ItemCount": 4,
+      "TableSizeBytes": 812,
+      "DeletionProtectionEnabled": false
+    },
+    "log_groups": {
+      "/aws/lambda/peach-report-builder": {
+        "logGroupName": "/aws/lambda/peach-report-builder",
+        "creationTime": 1791670179725,
+        "retentionInDays": 7,
+        "metricFilterCount": 0,
+        "arn": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder:*",
+        "storedBytes": 1346,
+        "logGroupClass": "STANDARD",
+        "logGroupArn": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-builder",
+        "deletionProtectionEnabled": false,
+        "bearerTokenAuthenticationEnabled": false
+      },
+      "/aws/lambda/peach-report-mailer": {
+        "logGroupName": "/aws/lambda/peach-report-mailer",
+        "creationTime": 1791670179812,
+        "retentionInDays": 7,
+        "metricFilterCount": 0,
+        "arn": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer:*",
+        "storedBytes": 579,
+        "logGroupClass": "STANDARD",
+        "logGroupArn": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-mailer",
+        "deletionProtectionEnabled": false,
+        "bearerTokenAuthenticationEnabled": false
+      },
+      "/aws/lambda/peach-agenda-parser": {
+        "logGroupName": "/aws/lambda/peach-agenda-parser",
+        "creationTime": 1792408314462,
+        "retentionInDays": 7,
+        "metricFilterCount": 0,
+        "arn": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-agenda-parser:*",
+        "storedBytes": 19793,
+        "logGroupClass": "STANDARD",
+        "logGroupArn": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-agenda-parser",
+        "deletionProtectionEnabled": false,
+        "bearerTokenAuthenticationEnabled": false
+      }
+    },
+    "s3_endpoint": [
+      {
+        "VpcEndpointId": "vpce-0e24aa58428a2f072",
+        "VpcEndpointType": "Gateway",
+        "VpcId": "vpc-0def9c995c9c73f75",
+        "ServiceName": "com.amazonaws.us-east-1.s3",
+        "State": "available",
+        "PolicyDocument": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PreserveExistingS3Authorization\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:*\",\"Resource\":\"*\"}]}",
+        "RouteTableIds": [
+          "rtb-0fb1d48c2f3f092c2"
+        ],
+        "SubnetIds": [],
+        "Groups": [],
+        "IpAddressType": "ipv4",
+        "DnsOptions": {
+          "DnsRecordIpType": "service-defined"
+        },
+        "PrivateDnsEnabled": false,
+        "RequesterManaged": false,
+        "NetworkInterfaceIds": [],
+        "DnsEntries": [],
+        "CreationTimestamp": "2026-10-10 22:09:38+00:00",
+        "Tags": [
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/bbb6bbf0-c4f6-11f1-a09e-0affe62532eb"
+          },
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "peach-reports"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "S3Endpoint"
+          }
+        ],
+        "OwnerId": "968053399627",
+        "ServiceRegion": "us-east-1"
+      }
+    ],
+    "route_tables": {
+      "RouteTables": [
+        {
+          "Associations": [
+            {
+              "Main": true,
+              "RouteTableAssociationId": "rtbassoc-0c2a56fc19d258fae",
+              "RouteTableId": "rtb-0fb1d48c2f3f092c2",
+              "AssociationState": {
+                "State": "associated"
+              }
+            }
+          ],
+          "PropagatingVgws": [],
+          "RouteTableId": "rtb-0fb1d48c2f3f092c2",
+          "Routes": [
+            {
+              "DestinationCidrBlock": "172.31.0.0/16",
+              "GatewayId": "local",
+              "Origin": "CreateRouteTable",
+              "State": "active"
+            },
+            {
+              "DestinationCidrBlock": "0.0.0.0/0",
+              "GatewayId": "igw-07766018bab2fc0b7",
+              "Origin": "CreateRoute",
+              "State": "active"
+            },
+            {
+              "DestinationPrefixListId": "pl-63a5400a",
+              "GatewayId": "vpce-0e24aa58428a2f072",
+              "Origin": "CreateRoute",
+              "State": "active"
+            }
+          ],
+          "Tags": [],
+          "VpcId": "vpc-0def9c995c9c73f75",
+          "OwnerId": "968053399627"
+        }
+      ]
+    },
+    "schedule_group": {
+      "Name": "peach-reports",
+      "Arn": "arn:aws:scheduler:us-east-1:968053399627:schedule-group/peach-reports",
+      "State": "ACTIVE"
+    },
+    "schedule": {
+      "ActionAfterCompletion": "NONE",
+      "Arn": "arn:aws:scheduler:us-east-1:968053399627:schedule/peach-reports/peach-weekly-report",
+      "CreationDate": "2026-10-11 01:11:02.930000+03:00",
+      "FlexibleTimeWindow": {
+        "Mode": "OFF"
+      },
+      "GroupName": "peach-reports",
+      "LastModificationDate": "2026-10-11 13:10:22.661000+03:00",
+      "Name": "peach-weekly-report",
+      "ScheduleExpression": "cron(0 7 ? * MON *)",
+      "ScheduleExpressionTimezone": "Europe/Kyiv",
+      "State": "ENABLED",
+      "Target": {
+        "Arn": "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+        "DeadLetterConfig": {
+          "Arn": "arn:aws:sqs:us-east-1:968053399627:peach-report-scheduler-dlq"
+        },
+        "Input": "{\"source\":\"schedule\",\"scheduled_time\":\"<aws.scheduler.scheduled-time>\",\"correlation_id\":\"<aws.scheduler.execution-id>\",\"schedule_arn\":\"<aws.scheduler.schedule-arn>\",\"attempt\":\"<aws.scheduler.attempt-number>\"}",
+        "RetryPolicy": {
+          "MaximumEventAgeInSeconds": 86400,
+          "MaximumRetryAttempts": 3
+        },
+        "RoleArn": "arn:aws:iam::968053399627:role/peach-report-scheduler"
+      }
+    },
+    "cognito": {
+      "pool": {
+        "Id": "us-east-1_bs7cWxhJp",
+        "Arn": "arn:aws:cognito-idp:us-east-1:968053399627:userpool/us-east-1_bs7cWxhJp",
+        "Name": "peach-users",
+        "EstimatedNumberOfUsers": 4,
+        "UserPoolTier": "ESSENTIALS",
+        "UsernameAttributes": [
+          "email"
+        ],
+        "UsernameConfiguration": {
+          "CaseSensitive": false
+        },
+        "AutoVerifiedAttributes": [
+          "email"
+        ],
+        "MfaConfiguration": "OFF",
+        "EmailConfiguration": {
+          "EmailSendingAccount": "COGNITO_DEFAULT"
+        },
+        "VerificationMessageTemplate": {
+          "DefaultEmailOption": "CONFIRM_WITH_CODE"
+        },
+        "AccountRecoverySetting": {
+          "RecoveryMechanisms": [
+            {
+              "Priority": 1,
+              "Name": "verified_email"
+            }
+          ]
+        },
+        "Policies": {
+          "PasswordPolicy": {
+            "MinimumLength": 8,
+            "RequireUppercase": true,
+            "RequireLowercase": true,
+            "RequireNumbers": true,
+            "RequireSymbols": true,
+            "TemporaryPasswordValidityDays": 7
+          },
+          "SignInPolicy": {
+            "AllowedFirstAuthFactors": [
+              "PASSWORD"
+            ]
+          }
+        },
+        "SchemaAttributes": [
+          {
+            "Name": "profile",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "address",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "birthdate",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "10",
+              "MaxLength": "10"
+            }
+          },
+          {
+            "Name": "gender",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "preferred_username",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "updated_at",
+            "AttributeDataType": "Number",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "NumberAttributeConstraints": {
+              "MinValue": "0"
+            }
+          },
+          {
+            "Name": "website",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "picture",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "identities",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {}
+          },
+          {
+            "Name": "sub",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": false,
+            "Required": true,
+            "StringAttributeConstraints": {
+              "MinLength": "1",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "email_verified",
+            "AttributeDataType": "Boolean",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false
+          },
+          {
+            "Name": "phone_number_verified",
+            "AttributeDataType": "Boolean",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false
+          },
+          {
+            "Name": "phone_number",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "zoneinfo",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "locale",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "email",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": true,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "given_name",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "family_name",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "middle_name",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "name",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          },
+          {
+            "Name": "nickname",
+            "AttributeDataType": "String",
+            "DeveloperOnlyAttribute": false,
+            "Mutable": true,
+            "Required": false,
+            "StringAttributeConstraints": {
+              "MinLength": "0",
+              "MaxLength": "2048"
+            }
+          }
+        ],
+        "AdminCreateUserConfig": {
+          "AllowAdminCreateUserOnly": false,
+          "UnusedAccountValidityDays": 7
+        },
+        "UserPoolTags": {
+          "PROJECT_NAME": "peach",
+          "aws:cloudformation:logical-id": "UserPool",
+          "aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-auth/bfe6d760-be6f-11f1-a3c9-0e8f87c1c059",
+          "aws:cloudformation:stack-name": "peach-auth"
+        },
+        "DeletionProtection": "INACTIVE"
+      },
+      "client": {
+        "UserPoolId": "us-east-1_bs7cWxhJp",
+        "ClientName": "peach-frontend",
+        "ClientId": "4vscaj9gks4n63ds52gbhi5ggn",
+        "RefreshTokenValidity": 30,
+        "TokenValidityUnits": {},
+        "ReadAttributes": [
+          "email",
+          "email_verified",
+          "name",
+          "picture"
+        ],
+        "WriteAttributes": [
+          "email",
+          "name",
+          "picture"
+        ],
+        "SupportedIdentityProviders": [
+          "COGNITO",
+          "Google"
+        ],
+        "CallbackURLs": [
+          "http://localhost:3000/auth/callback/",
+          "https://diby4tampbgny.cloudfront.net/auth/callback/"
+        ],
+        "LogoutURLs": [
+          "http://localhost:3000/",
+          "https://diby4tampbgny.cloudfront.net/"
+        ],
+        "AllowedOAuthFlows": [
+          "code"
+        ],
+        "AllowedOAuthScopes": [
+          "email",
+          "openid",
+          "profile"
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "PreventUserExistenceErrors": "ENABLED",
+        "EnableTokenRevocation": true,
+        "EnablePropagateAdditionalUserContextData": false,
+        "AuthSessionValidity": 3
+      },
+      "domain": {
+        "UserPoolId": "us-east-1_bs7cWxhJp",
+        "AWSAccountId": "968053399627",
+        "Domain": "peach-auth-diby4tampbgny",
+        "Status": "ACTIVE",
+        "ManagedLoginVersion": 2,
+        "CloudFrontDistribution": "d3oia8etllorh5.cloudfront.net"
+      },
+      "google_provider": {
+        "present": true,
+        "provider_name": "Google",
+        "attribute_mapping": {
+          "email": "email",
+          "email_verified": "email_verified",
+          "name": "name",
+          "picture": "picture",
+          "username": "sub"
+        },
+        "provider_details_keys": [
+          "attributes_url",
+          "attributes_url_add_attributes",
+          "authorize_scopes",
+          "authorize_url",
+          "client_id",
+          "client_secret",
+          "oidc_issuer",
+          "token_request_method",
+          "token_url"
+        ],
+        "client_id_matches_local": true,
+        "client_secret_present": true,
+        "public_provider_details": {
+          "attributes_url": "https://people.googleapis.com/v1/people/me?personFields=",
+          "attributes_url_add_attributes": "true",
+          "authorize_scopes": "openid email profile",
+          "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+          "oidc_issuer": "https://accounts.google.com",
+          "token_request_method": "POST",
+          "token_url": "https://www.googleapis.com/oauth2/v4/token"
+        },
+        "client_secret_matches_local": true
+      },
+      "branding": {
+        "ManagedLoginBrandingId": "aa403fbb-692c-4af3-b194-f07246c5edae",
+        "UserPoolId": "us-east-1_bs7cWxhJp",
+        "UseCognitoProvidedValues": true
+      }
+    },
+    "builder_event_source_mapping": {
+      "UUID": "3910d1ed-06a8-4867-a77e-9192b19d8c6d",
+      "BatchSize": 1,
+      "MaximumBatchingWindowInSeconds": 0,
+      "EventSourceArn": "arn:aws:sqs:us-east-1:968053399627:peach-report-work",
+      "ScalingConfig": {
+        "MaximumConcurrency": 2
+      },
+      "FunctionArn": "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder",
+      "LastModified": "2026-10-11 01:11:13.111000+03:00",
+      "State": "Enabled",
+      "StateTransitionReason": "USER_INITIATED",
+      "FunctionResponseTypes": [],
+      "EventSourceMappingArn": "arn:aws:lambda:us-east-1:968053399627:event-source-mapping:3910d1ed-06a8-4867-a77e-9192b19d8c6d"
+    }
+  },
+  "dependencies": {
+    "backend_function_arn": "arn:aws:lambda:us-east-1:968053399627:function:peach-backend",
+    "builder_security_groups": [
+      {
+        "GroupId": "sg-0545f0ff2d3d0ad76",
+        "IpPermissionsEgress": [
+          {
+            "IpProtocol": "-1",
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "peach-backend"
+          },
+          {
+            "Key": "PROJECT_NAME",
+            "Value": "peach"
+          },
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-backend/a40ea970-bd00-11f1-83db-0affe99a78bd"
+          },
+          {
+            "Key": "Name",
+            "Value": "peach-backend-function"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "FunctionSecurityGroup"
+          }
+        ],
+        "VpcId": "vpc-0def9c995c9c73f75",
+        "SecurityGroupArn": "arn:aws:ec2:us-east-1:968053399627:security-group/sg-0545f0ff2d3d0ad76",
+        "OwnerId": "968053399627",
+        "GroupName": "peach-backend-FunctionSecurityGroup-o2rszFyQuCSx",
+        "Description": "peach backend function",
+        "IpPermissions": []
+      }
+    ],
+    "builder_subnets": [
+      {
+        "SubnetId": "subnet-0b155a6dfcdf112f6",
+        "VpcId": "vpc-0def9c995c9c73f75",
+        "AvailabilityZone": "us-east-1b",
+        "State": "available"
+      },
+      {
+        "SubnetId": "subnet-0ce865e3d6a942f32",
+        "VpcId": "vpc-0def9c995c9c73f75",
+        "AvailabilityZone": "us-east-1d",
+        "State": "available"
+      },
+      {
+        "SubnetId": "subnet-0d85830f27e1de8a8",
+        "VpcId": "vpc-0def9c995c9c73f75",
+        "AvailabilityZone": "us-east-1c",
+        "State": "available"
+      },
+      {
+        "SubnetId": "subnet-05cb823b915b8c589",
+        "VpcId": "vpc-0def9c995c9c73f75",
+        "AvailabilityZone": "us-east-1f",
+        "State": "available"
+      },
+      {
+        "SubnetId": "subnet-03563e6593c729e87",
+        "VpcId": "vpc-0def9c995c9c73f75",
+        "AvailabilityZone": "us-east-1a",
+        "State": "available"
+      }
+    ],
+    "parser_boundary": {
+      "arn": "arn:aws:iam::968053399627:policy/PeachAgendaParserBoundary",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "bedrock:InvokeModel"
+            ],
+            "Resource": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0"
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogStream",
+              "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-agenda-parser:*"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "parser_auth_matches_backend": {
+      "COGNITO_AUTHORITY": true,
+      "COGNITO_CLIENT_ID": true,
+      "COGNITO_JWKS_JSON": true
+    },
+    "report_database_matches_backend": true,
+    "report_network_matches_backend": true,
+    "builder_mailer_scope_matches": true,
+    "subnet_route_tables": {
+      "subnet-0ce865e3d6a942f32": "rtb-0fb1d48c2f3f092c2",
+      "subnet-03563e6593c729e87": "rtb-0fb1d48c2f3f092c2",
+      "subnet-0b155a6dfcdf112f6": "rtb-0fb1d48c2f3f092c2",
+      "subnet-0d85830f27e1de8a8": "rtb-0fb1d48c2f3f092c2",
+      "subnet-05cb823b915b8c589": "rtb-0fb1d48c2f3f092c2"
+    },
+    "auth_exported_output_names": [],
+    "ai_exported_output_names": [],
+    "reports_exported_output_names": []
+  },
+  "preservation_baselines": {
+    "report_objects_count_verified": true,
+    "report_objects_count": 4,
+    "total_report_bytes": 4339
+  },
+  "hcp": {
+    "unauthenticated_api_http_status": 401,
+    "local_token_present": false,
+    "local_organization_configured": false,
+    "local_workspace_configured": false,
+    "connected_browser_count": 0,
+    "authenticated_inspection_possible": false,
+    "aws_oidc_provider_present": false,
+    "iam_role_enumeration_authorized": false,
+    "workspace_existence": "unknown: no authenticated access",
+    "vcs_settings": "unknown: no authenticated access",
+    "workspace_variables_and_permissions": "unknown: no authenticated access"
+  },
+  "additional": {
+    "bucket_head_error_code": "403",
+    "bucket_region_from_response": "us-east-1",
+    "google_public_provider_details": {
+      "attributes_url": "https://people.googleapis.com/v1/people/me?personFields=",
+      "attributes_url_add_attributes": "true",
+      "authorize_scopes": "openid email profile",
+      "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+      "oidc_issuer": "https://accounts.google.com",
+      "token_request_method": "POST",
+      "token_url": "https://www.googleapis.com/oauth2/v4/token"
+    },
+    "google_secret_matches_local": true,
+    "mail_state_tags": [
+      {
+        "Key": "PROJECT_NAME",
+        "Value": "peach"
+      }
+    ],
+    "schedule_group_tags": [
+      {
+        "Key": "aws:cloudformation:stack-name",
+        "Value": "peach-reports"
+      },
+      {
+        "Key": "aws:cloudformation:logical-id",
+        "Value": "ScheduleGroup"
+      },
+      {
+        "Key": "aws:cloudformation:stack-id",
+        "Value": "arn:aws:cloudformation:us-east-1:968053399627:stack/peach-reports/bbb6bbf0-c4f6-11f1-a09e-0affe62532eb"
+      },
+      {
+        "Key": "PROJECT_NAME",
+        "Value": "peach"
+      }
+    ]
+  },
+  "final_checks": {
+    "builder_policy_check": {
+      "status": "AccessDeniedException"
+    },
+    "kms_discovery_errors": [
+      {
+        "profile": "default",
+        "code": "AccessDeniedException"
+      },
+      {
+        "profile": "peach-reports-deploy",
+        "code": "AccessDeniedException"
+      }
+    ],
+    "sensitive_value_exclusion_audit": {
+      "GOOGLE_CLIENT_SECRET": true,
+      "DATABASE_URL": true
+    }
+  },
+  "initial_access_errors": [
+    {
+      "service": "cloudformation",
+      "operation": "describe_stacks",
+      "code": "AccessDenied",
+      "target": "peach-reports"
+    },
+    {
+      "service": "cloudformation",
+      "operation": "list_exports",
+      "code": "AccessDenied",
+      "target": null
+    },
+    {
+      "service": "iam",
+      "operation": "list_roles",
+      "code": "AccessDenied",
+      "target": null
+    },
+    {
+      "service": "cloudformation",
+      "operation": "list_exports",
+      "code": "AccessDenied",
+      "target": null
+    },
+    {
+      "service": "lambda",
+      "operation": "get_policy",
+      "code": "AccessDeniedException",
+      "target": "peach-report-builder"
+    },
+    {
+      "service": "lambda",
+      "operation": "list_event_source_mappings",
+      "code": "AccessDeniedException",
+      "target": "peach-report-builder"
+    },
+    {
+      "service": "s3",
+      "operation": "get_bucket_location",
+      "code": "AccessDenied",
+      "target": "peach-reports-968053399627-us-east-1"
+    },
+    {
+      "service": "iam",
+      "operation": "list_open_id_connect_providers",
+      "code": "AccessDenied",
+      "target": null
+    },
+    {
+      "service": "iam",
+      "operation": "list_roles",
+      "code": "AccessDenied",
+      "target": null
+    }
+  ],
+  "supplemental_access_errors": [
+    {
+      "profile": "default",
+      "service": "s3",
+      "operation": "get_bucket_location",
+      "code": "AccessDenied"
+    },
+    {
+      "profile": "reports",
+      "service": "s3",
+      "operation": "get_bucket_location",
+      "code": "AccessDenied"
+    }
+  ],
+  "secrets_persisted": false,
+  "remote_state_operations_performed": false,
+  "cloud_mutations_performed": false
+}

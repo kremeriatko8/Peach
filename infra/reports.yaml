@@ -56,6 +56,8 @@ Parameters:
     Description: Temporary isolated lab demonstration only; leave false for normal SQS flow.
 Resources:
   BuilderDlq:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub '${ProjectName}-report-builder-dlq'
@@ -66,6 +68,8 @@ Resources:
         sourceQueueArns: [!Sub 'arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${ProjectName}-report-work']
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   WorkQueue:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub '${ProjectName}-report-work'
@@ -77,6 +81,8 @@ Resources:
         maxReceiveCount: 3
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   SchedulerDlq:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub '${ProjectName}-report-scheduler-dlq'
@@ -84,6 +90,8 @@ Resources:
       SqsManagedSseEnabled: true
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   MailerFailureQueue:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub '${ProjectName}-report-mailer-failures'
@@ -102,18 +110,24 @@ Resources:
       SSESpecification: {SSEEnabled: true}
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   BuilderLogGroup:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/lambda/${ProjectName}-report-builder'
       RetentionInDays: 7
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   MailerLogGroup:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/lambda/${ProjectName}-report-mailer'
       RetentionInDays: 7
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   BuilderRole:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub '${ProjectName}-report-builder'
@@ -139,6 +153,8 @@ Resources:
                 Action: 's3:PutObject'
                 Resource: !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-reports-${AWS::AccountId}-${AWS::Region}/reports/${ReportScopeId}/*.csv'
   MailerRole:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub '${ProjectName}-report-mailer'
@@ -170,6 +186,8 @@ Resources:
                 Action: 'sqs:SendMessage'
                 Resource: !GetAtt MailerFailureQueue.Arn
   Builder:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${ProjectName}-report-builder'
@@ -197,6 +215,8 @@ Resources:
           REPORT_ALLOW_DIRECT: !Ref AllowDirectEvents
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   BuilderMapping:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Lambda::EventSourceMapping
     Properties:
       EventSourceArn: !GetAtt WorkQueue.Arn
@@ -206,6 +226,8 @@ Resources:
       ScalingConfig: {MaximumConcurrency: 2}
       Enabled: true
   Mailer:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${ProjectName}-report-mailer'
@@ -227,6 +249,8 @@ Resources:
           REPORT_DEDUP_TABLE: !Ref MailState
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   MailerAsyncConfig:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Lambda::EventInvokeConfig
     Properties:
       FunctionName: !Ref Mailer
@@ -236,6 +260,8 @@ Resources:
       DestinationConfig:
         OnFailure: {Destination: !GetAtt MailerFailureQueue.Arn}
   MailerS3Permission:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref Mailer
@@ -269,6 +295,8 @@ Resources:
                 Rules: [{Name: prefix, Value: reports/}, {Name: suffix, Value: .csv}]
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   ReportsBucketPolicy:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket: !Ref ReportsBucket
@@ -281,6 +309,8 @@ Resources:
             Resource: [!GetAtt ReportsBucket.Arn, !Sub '${ReportsBucket.Arn}/*']
             Condition: {Bool: {'aws:SecureTransport': 'false'}}
   S3Endpoint:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VpcId
@@ -298,11 +328,15 @@ Resources:
             Action: 's3:*'
             Resource: '*'
   ScheduleGroup:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Scheduler::ScheduleGroup
     Properties:
       Name: !Sub '${ProjectName}-reports'
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   SchedulerRole:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub '${ProjectName}-report-scheduler'
@@ -325,6 +359,8 @@ Resources:
                 Resource: [!GetAtt WorkQueue.Arn, !GetAtt SchedulerDlq.Arn]
       Tags: [{Key: PROJECT_NAME, Value: !Ref ProjectName}]
   WeeklySchedule:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: !Sub '${ProjectName}-weekly-report'

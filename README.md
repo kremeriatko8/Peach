@@ -1,5 +1,23 @@
 # Peach
 
+> **Lab 7 — local migration preparation:** Terraform for Cognito, weekly reports
+> and the agenda parser is prepared under `infra/`, but no live migration has
+> occurred. The three CloudFormation templates remain with undeployed retention
+> policies. Read [the migration runbook](docs/terraform-migration.md),
+> [resource inventory](docs/terraform-migration-inventory.md), and
+> [ADR 0007](docs/adr/0007-terraform.md) before infrastructure operations.
+> `make infra-validate` performs isolated validation and mocked plan tests;
+> `make infra-plan` requires explicit remote-plan approval. Infrastructure applies
+> belong to reviewed HCP runs. `deploy-auth` and `ai-prepare-deploy` now point to
+> planning; historical deployment instructions below are not migration commands.
+> All 41 import blocks are prepared locally with adoption disabled. Use
+> [the first-preview procedure](docs/terraform-first-preview.md) for an unmerged PR;
+> pushing directly to main triggers backend deployment.
+> Existing application output lookups stay on CloudFormation until explicit
+> `PEACH_INFRA_SOURCE=terraform` cutover after successful imports.
+
+
+
 A monorepo starter: **FastAPI** backend, **Next.js + shadcn/ui** frontend, **PostgreSQL** database,
 everything runnable with a single `docker compose up`.
 

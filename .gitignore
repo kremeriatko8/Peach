@@ -31,3 +31,25 @@ pgdata/
 
 # Local weekly productivity report artifacts
 reports-local/
+
+# Terraform: state and binary/JSON plans can contain plaintext secrets.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.json
+tfplan
+tfplan.*
+crash.log
+crash.*.log
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+*.override.tf
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+infra/generated.tf
+infra/migration-private/
+# Keep infra/.terraform.lock.hcl and non-secret infra/terraform.tfvars tracked.

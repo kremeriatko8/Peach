@@ -1,0 +1,43 @@
+name: Terraform static checks
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - 'scripts/terraform-*'
+      - 'scripts/infra-outputs.*'
+      - 'scripts/tests/test_terraform_migration.py'
+      - 'docs/terraform-*'
+      - '.github/workflows/terraform-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      CHECKPOINT_DISABLE: '1'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.5
+          terraform_wrapper: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install locked test dependencies
+        working-directory: backend
+        run: |
+          uv python install 3.14
+          uv sync --frozen
+      - name: Offline migration audit and safety tests
+        run: backend/.venv/bin/python -m pytest scripts/tests/test_terraform_migration.py -q
+      - name: Format, validate and mock-plan tests without AWS or HCP
+        run: bash scripts/terraform-check.sh
