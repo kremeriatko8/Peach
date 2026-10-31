@@ -80,3 +80,17 @@ code that requires them, and remove old paths only after consumers migrate.
 During local preparation, CFN output lookups remain the default. The explicit
 Terraform cutover, HCP access setup, retention deployment, detachment/import,
 VCS proof, drift exercise and final template removal are all pending live approval.
+
+## 2026-10-31 initial-adoption exception and remaining control
+
+Terraform 1.13.5 classifies newly propagated sensitivity paths as Update even
+when imported values match. The third preview proves four such transitions; core
+skips provider update calls for them but would persist state metadata. The project
+owner accepts those four exact, verified transitions for the one initial adoption
+run. This decision does not claim that the written rubric says zero changes: it
+does not. It neither unmarks secrets nor changes the default-false adoption gate,
+and it does not authorize a state operation by itself. A human must still review
+the fresh HCP VCS run and authorize retention, detachment and apply separately.
+The immediate post-adoption plan must be genuinely `No changes`; otherwise the
+handover fails. See [the detailed assessment](../terraform-sensitivity-metadata-review.md)
+and [operator handover](../terraform-adoption-handover.md).

@@ -1,3 +1,10 @@
+> Current blocker (2026-10-29): third preview has 41 imports and four proven
+> sensitivity-only metadata updates, with equal values and no AWS change actions.
+> The assignment expects initial zero changes and a post-import No changes plan;
+> no metadata exception is documented. Strict gates remain unchanged. Instructor
+> clarification and user approval are required before any adoption exception or
+> live handover. See [consolidated assessment](terraform-sensitivity-metadata-review.md).
+
 # Lab 7 read-only migration readiness assessment
 
 Assessment date: 2026-10-27, Europe/Kyiv. Observation started at

@@ -75,9 +75,10 @@ resource "aws_cognito_identity_provider" "google" {
 }
 
 resource "aws_cognito_user_pool_client" "frontend" {
-  name                                 = "${var.project_name}-frontend"
-  user_pool_id                         = aws_cognito_user_pool.main.id
-  generate_secret                      = false
+  name         = "${var.project_name}-frontend"
+  user_pool_id = aws_cognito_user_pool.main.id
+  # Create-only in provider 6.70.0: imports leave this null. Explicit false
+  # would replace the existing secretless public client. Preserve its identity.
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["openid", "email", "profile"]

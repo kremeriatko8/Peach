@@ -60,7 +60,7 @@ variables {
 run "preserve_auth_and_report_safety" {
   command = plan
   assert {
-    condition     = aws_cognito_user_pool.main.user_pool_tier == "ESSENTIALS" && aws_cognito_user_pool.main.username_configuration[0].case_sensitive == false && aws_cognito_user_pool_client.frontend.generate_secret == false
+    condition     = aws_cognito_user_pool.main.user_pool_tier == "ESSENTIALS" && aws_cognito_user_pool.main.username_configuration[0].case_sensitive == false && aws_cognito_user_pool_client.frontend.generate_secret == null
     error_message = "Cognito must preserve sign-in and the public PKCE client."
   }
   assert {

@@ -70,3 +70,73 @@ package hash. Generated the additional linux_amd64 h1 hash with Terraform's
 Terraform verified the package as signed by HashiCorp. The correction adds one
 platform hash; provider version, existing hashes, gate and infrastructure source
 are unchanged. No plan, backend initialization or cloud operation was used.
+
+## Post-preview local remediation
+
+After run-KkT61Sro17vKC8Dd failed, removed only the proven create-only
+generate_secret import mismatch. All protection gates remain intact. Prepared
+a two-action read-policy supplement and sanitized evidence for the 29 evaluated
+and 12 unevaluated imports. Google secret and opaque mailer-policy differences
+remain unresolved; no ignore_changes or IAM runtime-policy changes were made.
+
+Checks: Terraform fmt/validate and 6 mocked tests passed; 256 script tests and
+63 subtests passed, including 41 migration tests. Migration Ruff lint/format,
+actionlint, three-template cfn-lint, shell syntax and whitespace checks passed.
+No second real plan, commit, push, HCP variable edit or cloud mutation occurred.
+See [the remediation report](terraform-preview-remediation.md).
+
+## Corrected preview preparation follow-up
+
+Selected the same two read actions scoped to all three unqualified migration
+Lambda functions and regional EC2 metadata. Added parser coverage to the permission
+regression test. Repeated checks passed: 256 script tests/63 subtests, 6 Terraform
+mock tests, fmt/validate, migration lint/format, actionlint and three-template
+cfn-lint. Live mailer policy was read using the existing reporting profile and
+matches the imported policy. HCP sensitive inputs are unreadable by design; only
+input availability/equality booleans were reported. The original local Google
+secret matches deployed AWS in memory. A corrected private 62-file infrastructure
+archive is initialized; no real plan or workspace variable update was performed.
+
+## Second-preview diagnosis and private-input guard
+
+Added the minimum pool-scoped ListUserPoolClients statement and a read-only-default
+helper for authoritative run-specific private inputs. Its live default-mode
+checks passed: all five values load in memory, SES policy/environment agree,
+archive and HCP safety checks pass. No real plan ran. New mocked tests and
+complete scripts suite passed (264 tests, 63 subtests); Terraform validation and
+6 mock scenarios passed. Migration CI now includes the new helper tests. The
+corrected 62-file upload archive remains unchanged. See the consolidated diagnosis.
+
+## Secret-output and crash boundary hardening
+
+Removed raw subprocess output inheritance. Added memory-only capture and parsing,
+strict output schema, quiet argument failures, core-dump suppression and mandatory
+OS write denial for the parent/helper and descendants. Only /dev/null is writable.
+Read-only live probes pass inside this boundary, including authoritative AWS
+inputs, Remote HCP workspace and pinned Terraform/configuration discovery.
+Full script suite: 280 passed and 63 subtests; the additional quiet-argument test
+passes in the 25-test security/helper suite. Terraform validation and 6 mock tests,
+migration tests, Ruff, actionlint, CFN checks and secret/whitespace checks pass.
+No synthetic private marker is emitted or written by the denied-crash test.
+
+Final hardening/metadata regression results: 282 script tests and 63 subtests
+passed, including 26 helper security tests. Third plan executed once; no raw
+artifacts were written. Result: 41 imports, four sensitivity-only updates, zero
+adds/replacements/deletes and no diagnostics. All four full before/after objects
+are equal and all private inputs match AWS. Strict zero-update guard rejects it;
+no apply/retry/state write followed. Original branch and archive remain unchanged.
+
+## Sensitivity/rubric assessment (2026-10-29)
+
+Reviewed pinned core import/plan/apply/state encoding, provider schema flags, full
+private third-plan evidence and original assignment text. The assignment expects
+initial zero changes and a genuine post-adoption No changes plan. The project owner
+accepts the four verified metadata-only initial updates as an operational exception,
+without describing the initial plan as zero-change or weakening the strict guard.
+The post-adoption plan remains required to be genuinely clean. Three synthetic
+regressions prove adopt/clean still reject metadata-only updates; a synthetic
+stable-mark no-op plan passes clean. Full scripts: 285 passed, 63 subtests;
+migration/helper: 70 passed; Terraform fmt/validate and 6 mocks passed; Ruff,
+actionlint, three-template cfn-lint and whitespace checks passed. No new plan,
+state operation, cloud write or publication occurred. See
+terraform-sensitivity-metadata-review.md and terraform-adoption-handover.md.

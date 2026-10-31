@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-29",
+  "run_id": "run-imy3iE9GiZh9i2WD",
+  "terraform_version": "1.13.5",
+  "aws_provider_version": "6.70.0",
+  "updated_resources": [
+    {
+      "address": "aws_cognito_identity_provider.google[0]",
+      "paths": [
+        "provider_details.client_secret"
+      ],
+      "variable_sources": [
+        "google_client_secret"
+      ],
+      "provider_schema_sensitive": false
+    },
+    {
+      "address": "aws_iam_role_policy.mailer",
+      "paths": [
+        "policy"
+      ],
+      "variable_sources": [
+        "report_from_email",
+        "report_recipient_email"
+      ],
+      "provider_schema_sensitive": false
+    },
+    {
+      "address": "aws_lambda_function.builder",
+      "paths": [
+        "environment[0].variables.DATABASE_URL",
+        "environment[0].variables.REPORT_OWNER_SUB"
+      ],
+      "variable_sources": [
+        "database_url",
+        "report_owner_sub"
+      ],
+      "provider_schema_sensitive": false
+    },
+    {
+      "address": "aws_lambda_function.mailer",
+      "paths": [
+        "environment[0].variables.REPORT_FROM_EMAIL",
+        "environment[0].variables.REPORT_RECIPIENT_EMAIL"
+      ],
+      "variable_sources": [
+        "report_from_email",
+        "report_recipient_email"
+      ],
+      "provider_schema_sensitive": false
+    }
+  ],
+  "full_before_after_values_identical": true,
+  "unknown_values_present": false,
+  "state_version_exists": false,
+  "state_metadata_field": "sensitive_attributes",
+  "initial_import_zero_updates_safely_achieved": false,
+  "post_adoption_no_change_plan_observed": false,
+  "strict_gate_changed": false,
+  "rubric": {
+    "source_file": "Pasted text.txt (user supplied)",
+    "source_sha256": "aeacb35cd2a871529d1c1f175ad8bdbe366f89e7b0fb9a0a08bdf0629ca26d16",
+    "initial_import": {
+      "section": "Part 2, Step 3c",
+      "line": 552,
+      "exact_text": "Plan: 14 to import, 0 to add, 0 to change, 0 to destroy."
+    },
+    "post_adoption": {
+      "section": "What you submit, item 3; Part 2, Step 3c",
+      "lines": [
+        8,
+        555
+      ],
+      "exact_submission_text": "The output of terraform plan right after the migration, ending in No changes. Your infrastructure matches the configuration."
+    },
+    "written_metadata_exception_found": false,
+    "grading_weights_provided": false
+  }
+}

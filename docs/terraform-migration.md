@@ -2,31 +2,20 @@
 
 ## Current status
 
-Local implementation is complete. Read-only AWS discovery was performed on
-2026-10-27; no cloud mutation, deployment, import or remote state operation has
-occurred. HCP authenticated access remains unavailable. The original templates
-remain with undeployed Retain policies; only two of 31 live declarations are
-currently retention-protected. See the [readiness assessment](terraform-migration-readiness.md)
-for the 41 observed import IDs, required HCL reconciliation and exact blockers.
-Validation and mocked plans do not establish live parity.
+The third CLI speculative run completed with 41 imports and four sensitivity-only
+metadata updates; full private plan values are equal. HCP authentication and
+read-only provider access work. No Terraform state has been adopted. Original
+CFN templates remain, and retention must be reverified before any future handover
+(the October 27 inventory recorded only two protected declarations).
 
-**Preview candidate update (2026-10-28):** all 41 literal import blocks are now
-prepared in local source and audited against the recorded inventory. The gate
-remains false. Follow [the first speculative-preview instructions](terraform-first-preview.md)
-before any publication or HCP run. Preview approval does not authorize retention
-updates, stack detachment or an import apply.
-
-The root module is `infra/`, explicitly bound to confirmed organization
-`ooad-kremeriatko8` and workspace `peach-dev`. Terraform 1.13.5 and AWS provider 6.70.0 are used for
-local validation; `.terraform.lock.hcl` pins package checksums. The provider is
-restricted to the required verified account ID and us-east-1. There are no static
-credentials, live ID defaults, AWS data sources or application code changes.
-
-See [HCP setup instructions](terraform-hcp-setup.md),
-[the local validation record](terraform-local-validation.md),
-[resource inventory](terraform-migration-inventory.md) and
-[ADR 0007](adr/0007-terraform.md). There are 41 candidate imports (40 without
-Google federation), derived from 31 CFN declarations. No recreation is planned.
+The course text literally expects zero changes in the initial import plan as well
+as a post-adoption `No changes` plan. The project owner has accepted the four
+documented, state-metadata-only updates as a narrowly bounded *initial-adoption*
+exception. This is not represented as zero changes and is not an interpretation
+of the rubric. The post-adoption plan remains an unconditional `No changes`
+requirement. See the [sensitivity/core and assignment assessment](terraform-sensitivity-metadata-review.md)
+and the [operator handover](terraform-adoption-handover.md). Steps below are
+future separately authorized operations, not permission to execute.
 
 ## Local checks
 
@@ -177,13 +166,18 @@ remove old configuration until consumers have migrated.
    works, and stop if any discrepancy appears. Do not detach backend/database/site,
    budget, migration, GitHub OIDC or bootstrap resources. No Terraform apply while
    CloudFormation still owns these objects.
-7. Run and review the full HCP import plan. Require 41 (or 40) imports and **zero
-   adds/changes/destroys**. Outputs may be new. Privately export its plan JSON and
-   run `python3 scripts/terraform-review-plan.py <plan.json> --mode adopt` (add
-   `--google-absent` only for confirmed absence). Never publish raw plan JSON.
-   All resource differences, deferred actions and replacement proposals block the
-   apply. Reconcile HCL to reality. No permission/notification recreation is
-   currently necessary or approved, despite the assignment allowing exceptions.
+7. Run and review the full HCP import plan. The rubric target is 41 imports and
+   **zero adds/changes/destroys**. Outputs may be new. The only project-approved
+   exception is the four exact metadata-only Update actions documented in the
+   handover; it must be proven from a full private plan, not inferred from redacted
+   output. Privately export its plan JSON and run the strict
+   `python3 scripts/terraform-review-plan.py <plan.json> --mode adopt` first.
+   It intentionally rejects every Update, including this exception. Do not apply
+   unless the separate human review confirms the exact exception evidence. Never
+   publish raw plan JSON. All other resource differences, deferred actions and
+   replacement proposals block the apply. Reconcile HCL to reality. No
+   permission/notification recreation is currently necessary or approved, despite
+   the assignment allowing exceptions.
 8. A human approves the exact HCP import run after merge/review; HCP performs the
    apply. If it fails partway, preserve state and inspect the run. Imported objects
    remain in AWS; finish importing only the remaining objects after reconciling the

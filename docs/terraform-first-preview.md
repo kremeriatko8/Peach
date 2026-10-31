@@ -1,9 +1,16 @@
 # Peach migration: first speculative preview
 
-Status: local PR candidate, 2026-10-28. No commit, push, PR, HCP run, import,
-remote state operation or cloud mutation has been performed by this preparation.
-The 41 import blocks are now active **in local source only**. They do not execute
-imports on their own. The repository/default adoption gate remains **false**.
+Status: updated 2026-10-29. PR #2 is published as a draft; subsequent local
+remediation/security changes remain uncommitted. Three CLI speculative runs have
+occurred. The latest has 41 imports and four sensitivity-only metadata updates,
+no value differences or diagnostic errors. No adoption/state write has occurred.
+The repository/default adoption gate remains false and all 41 protections remain.
+The project owner accepts the four verified sensitivity-metadata-only Updates for
+the initial adoption run. This does not call the preview zero-change or alter the
+written rubric; the first post-adoption plan must still be genuinely `No changes`.
+See the [core/rubric assessment](terraform-sensitivity-metadata-review.md) and
+[operator handover](terraform-adoption-handover.md). The procedures below describe
+separately authorized future preview/publication work.
 
 ## Candidate contents and review
 
@@ -81,12 +88,15 @@ See [the candidate review](terraform-pr-review.md).
    In HCP, verify the run is **speculative/plan-only**, the SHA is the approved PR
    commit, and it uses the expected workspace. Do not use New run against main
    as a substitute: main has not received this candidate.
-6. Read the complete plan. The acceptance target is **41 to import, 0 to add,
-   0 to change, 0 to destroy**. New public outputs are expected. Missing objects,
-   proposed updates, replacements, destruction, unverified/deferred checks or an
-   unexpected ID all block progression. An IAM denial is a request to inspect the
-   specific read permission, not grant writes/admin or hide a difference with
-   ignore_changes. Keep the parser and weekly schedule enabled.
+6. Read the complete plan. The rubric target is **41 to import, 0 to add,
+   0 to change, 0 to destroy**. New public outputs are expected. The only approved
+   deviation is the four exact sensitivity-metadata updates recorded in the
+   assessment and operator handover; all must prove equal private values and no
+   provider update path. Missing objects, any other update, replacement,
+   destruction, unverified/deferred check or unexpected ID blocks progression. An
+   IAM denial is a request to inspect the specific read permission, not grant
+   writes/admin or hide a difference with ignore_changes. Keep the parser and
+   weekly schedule enabled.
 7. If exporting plan JSON for the offline guard, keep it private: it may include
    plaintext secrets even when console output is redacted. Only under separately
    approved secure handling, use ignored `infra/migration-private/` (0700 directory,

@@ -1,0 +1,202 @@
+{
+  "run_id": "run-KkT61Sro17vKC8Dd",
+  "plan_status": "errored",
+  "partial_counts": {
+    "imports": 29,
+    "additions": 1,
+    "updates": 2,
+    "destructions": 1
+  },
+  "replacement": {
+    "address": "aws_cognito_user_pool_client.frontend",
+    "replace_paths": [
+      [
+        "generate_secret"
+      ]
+    ],
+    "imported_value": null,
+    "configured_value": false,
+    "live_client_has_secret": false
+  },
+  "updates": [
+    {
+      "address": "aws_cognito_identity_provider.google[0]",
+      "changed_paths": [
+        "provider_details.client_secret"
+      ],
+      "proposed_value_redacted": true
+    },
+    {
+      "address": "aws_iam_role_policy.mailer",
+      "changed_paths": [
+        "policy"
+      ],
+      "proposed_value_redacted": true
+    }
+  ],
+  "planned_import_addresses": [
+    "aws_cloudwatch_log_group.builder",
+    "aws_cloudwatch_log_group.mailer",
+    "aws_cloudwatch_log_group.parser",
+    "aws_cognito_identity_provider.google[0]",
+    "aws_cognito_user_pool.main",
+    "aws_cognito_user_pool_client.frontend",
+    "aws_cognito_user_pool_domain.main",
+    "aws_dynamodb_table.mail_state",
+    "aws_iam_role.builder",
+    "aws_iam_role.mailer",
+    "aws_iam_role.parser",
+    "aws_iam_role.scheduler",
+    "aws_iam_role_policy.builder",
+    "aws_iam_role_policy.mailer",
+    "aws_iam_role_policy.parser",
+    "aws_iam_role_policy.scheduler",
+    "aws_s3_bucket.reports",
+    "aws_s3_bucket_lifecycle_configuration.reports",
+    "aws_s3_bucket_ownership_controls.reports",
+    "aws_s3_bucket_policy.reports",
+    "aws_s3_bucket_public_access_block.reports",
+    "aws_s3_bucket_server_side_encryption_configuration.reports",
+    "aws_scheduler_schedule.weekly",
+    "aws_scheduler_schedule_group.reports",
+    "aws_sqs_queue.builder_dlq",
+    "aws_sqs_queue.mailer_failure",
+    "aws_sqs_queue.scheduler_dlq",
+    "aws_sqs_queue.work",
+    "aws_sqs_queue_redrive_allow_policy.builder_dlq"
+  ],
+  "not_evaluated_imports": [
+    {
+      "stack": "ai",
+      "logical_id": "InvokePermission",
+      "terraform_address": "aws_lambda_permission.parser_invoke",
+      "strategy": "import",
+      "import_id": "peach-agenda-parser/peach-ai-InvokePermission-1aneGP8egfuW",
+      "import_id_format": "function_name/statement_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_permission.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "ai",
+      "logical_id": "Parser",
+      "terraform_address": "aws_lambda_function.parser",
+      "strategy": "import",
+      "import_id": "peach-agenda-parser",
+      "import_id_format": "function_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "ai",
+      "logical_id": "Url",
+      "terraform_address": "aws_lambda_function_url.parser",
+      "strategy": "import",
+      "import_id": "peach-agenda-parser",
+      "import_id_format": "function_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function_url.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "ai",
+      "logical_id": "UrlPermission",
+      "terraform_address": "aws_lambda_permission.parser_url",
+      "strategy": "import",
+      "import_id": "peach-agenda-parser/peach-ai-UrlPermission-qhG0kDsGDpX5",
+      "import_id_format": "function_name/statement_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_permission.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "auth",
+      "logical_id": "ManagedLoginBranding",
+      "terraform_address": "aws_cognito_managed_login_branding.frontend",
+      "strategy": "import",
+      "import_id": "us-east-1_bs7cWxhJp,aa403fbb-692c-4af3-b194-f07246c5edae",
+      "import_id_format": "user_pool_id,managed_login_branding_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/cognito_managed_login_branding.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "reports",
+      "logical_id": "Builder",
+      "terraform_address": "aws_lambda_function.builder",
+      "strategy": "import",
+      "import_id": "peach-report-builder",
+      "import_id_format": "function_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "reports",
+      "logical_id": "BuilderMapping",
+      "terraform_address": "aws_lambda_event_source_mapping.builder",
+      "strategy": "import",
+      "import_id": "3910d1ed-06a8-4867-a77e-9192b19d8c6d",
+      "import_id_format": "mapping_uuid",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_event_source_mapping.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "reports",
+      "logical_id": "Mailer",
+      "terraform_address": "aws_lambda_function.mailer",
+      "strategy": "import",
+      "import_id": "peach-report-mailer",
+      "import_id_format": "function_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "reports",
+      "logical_id": "MailerAsyncConfig",
+      "terraform_address": "aws_lambda_function_event_invoke_config.mailer",
+      "strategy": "import",
+      "import_id": "peach-report-mailer:$LATEST",
+      "import_id_format": "function_name:$LATEST",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function_event_invoke_config.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "reports",
+      "logical_id": "MailerS3Permission",
+      "terraform_address": "aws_lambda_permission.mailer_s3",
+      "strategy": "import",
+      "import_id": "peach-report-mailer/peach-reports-MailerS3Permission-Qbsido0QF2oJ",
+      "import_id_format": "function_name/statement_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_permission.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "reports",
+      "logical_id": "ReportsBucket.NotificationConfiguration",
+      "terraform_address": "aws_s3_bucket_notification.reports",
+      "strategy": "import",
+      "import_id": "peach-reports-968053399627-us-east-1",
+      "import_id_format": "bucket_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/s3_bucket_notification.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    },
+    {
+      "stack": "reports",
+      "logical_id": "S3Endpoint",
+      "terraform_address": "aws_vpc_endpoint.reports_s3",
+      "strategy": "import",
+      "import_id": "vpce-0e24aa58428a2f072",
+      "import_id_format": "vpce_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/vpc_endpoint.html.markdown",
+      "notes": "Observed physical ID, translated to the pinned provider import format. Proposed import only; no import or HCP/state operation performed.",
+      "observed_at_utc": "2026-10-27T06:57:58.968806+00:00"
+    }
+  ]
+}

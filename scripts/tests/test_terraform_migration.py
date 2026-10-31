@@ -435,3 +435,119 @@ def test_confirmed_workspace_binding_cannot_be_redirected_by_environment():
     assert 'organization = "ooad-kremeriatko8"' in versions
     assert 'name = "peach-dev"' in versions
     assert "cloud {}" not in versions
+
+
+def test_imported_public_client_does_not_configure_create_only_secret_flag():
+    evidence = json.loads(
+        (ROOT / "docs/terraform-preview-remediation-evidence.json").read_text()
+    )
+    replacement = evidence["replacement"]
+    assert replacement["replace_paths"] == [["generate_secret"]]
+    assert replacement["imported_value"] is None
+    assert replacement["live_client_has_secret"] is False
+    client = (
+        (ROOT / "infra/auth.tf")
+        .read_text()
+        .split('resource "aws_cognito_user_pool_client" "frontend" {')[1]
+        .split('resource "')[0]
+    )
+    assert not re.search(r"(?m)^\s*generate_secret\s*=", client)
+    assert "prevent_destroy = true" in client
+    assert "ignore_changes" not in client
+
+
+def test_preview_permission_supplement_is_minimal_and_region_scoped():
+    policy = json.loads(
+        (ROOT / "docs/terraform-preview-read-permissions.json").read_text()
+    )
+    statements = policy["Statement"]
+    assert len(statements) == 3
+    assert {s["Action"] for s in statements} == {
+        "lambda:ListVersionsByFunction",
+        "ec2:DescribePrefixLists",
+        "cognito-idp:ListUserPoolClients",
+    }
+    for statement in statements:
+        assert statement["Effect"] == "Allow"
+        assert statement["Condition"] == {
+            "StringEquals": {"aws:RequestedRegion": "us-east-1"}
+        }
+        if statement["Action"].startswith("lambda:"):
+            assert set(statement["Resource"]) == {
+                "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder",
+                "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer",
+                "arn:aws:lambda:us-east-1:968053399627:function:peach-agenda-parser",
+            }
+        elif statement["Action"].startswith("cognito-idp:"):
+            assert statement["Resource"] == (
+                "arn:aws:cognito-idp:us-east-1:968053399627:userpool/us-east-1_bs7cWxhJp"
+            )
+        else:
+            assert statement["Resource"] == "*"
+
+
+def test_failed_plan_partition_preserves_all_41_imports():
+    evidence = json.loads(
+        (ROOT / "docs/terraform-preview-remediation-evidence.json").read_text()
+    )
+    expected = {
+        r["terraform_address"]: r["import_id"] for r in live_inventory()["resources"]
+    }
+    evaluated = set(evidence["planned_import_addresses"])
+    pending = {
+        r["terraform_address"]: r["import_id"]
+        for r in evidence["not_evaluated_imports"]
+    }
+    assert len(evaluated) == 29
+    assert len(pending) == 12
+    assert not evaluated.intersection(pending)
+    assert evaluated.union(pending) == set(expected)
+    assert all(value == expected[address] for address, value in pending.items())
+    assert (
+        module("terraform-imports").check_file(
+            live_inventory(), ROOT / "infra/imports.tf"
+        )
+        == 41
+    )
+
+
+def sensitivity_only_fixture(importing):
+    """Synthetic guard contract; this does not create or simulate live state."""
+    plan = synthetic_plan(importing)
+    addresses = {
+        "aws_cognito_identity_provider.google[0]",
+        "aws_iam_role_policy.mailer",
+        "aws_lambda_function.builder",
+        "aws_lambda_function.mailer",
+    }
+    for row in plan["resource_changes"]:
+        if row["address"] in addresses:
+            value = {"test_private_attribute": "synthetic-private-value"}
+            row["change"].update(
+                actions=["update"],
+                before=copy.deepcopy(value),
+                after=copy.deepcopy(value),
+                before_sensitive={},
+                after_sensitive={"test_private_attribute": True},
+                after_unknown={},
+            )
+    return plan
+
+
+@pytest.mark.parametrize("mode", ["adopt", "clean"])
+def test_sensitivity_only_updates_do_not_bypass_strict_gate(mode):
+    plan = sensitivity_only_fixture(importing=mode == "adopt")
+    with pytest.raises(ValueError):
+        module("terraform-review-plan").review(plan, mode)
+
+
+def test_persisted_sensitivity_metadata_is_compatible_with_genuine_clean_plan():
+    # This is a synthetic representation of a future observed no-op plan, not
+    # evidence that adoption or a live clean plan has already occurred.
+    plan = sensitivity_only_fixture(importing=False)
+    for row in plan["resource_changes"]:
+        change = row["change"]
+        if change["actions"] == ["update"]:
+            change["actions"] = ["no-op"]
+            change["before_sensitive"] = copy.deepcopy(change["after_sensitive"])
+    assert module("terraform-review-plan").review(plan, "clean") == 0
