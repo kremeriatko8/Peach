@@ -1,0 +1,200 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CognitoPeachUserPool",
+      "Effect": "Allow",
+      "Action": "cognito-idp:*",
+      "Resource": "arn:aws:cognito-idp:us-east-1:968053399627:userpool/us-east-1_bs7cWxhJp"
+    },
+    {
+      "Sid": "CognitoAccountLevelReads",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:DescribeUserPoolDomain",
+        "cognito-idp:ListUserPools"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaPeachFunctions",
+      "Effect": "Allow",
+      "Action": "lambda:*",
+      "Resource": [
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-agenda-parser",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-agenda-parser:*",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-builder:*",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer",
+        "arn:aws:lambda:us-east-1:968053399627:function:peach-report-mailer:*",
+        "arn:aws:lambda:us-east-1:968053399627:event-source-mapping:*"
+      ]
+    },
+    {
+      "Sid": "LambdaEventSourceMappingCreateAndList",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateEventSourceMapping",
+        "lambda:ListEventSourceMappings",
+        "lambda:GetAccountSettings"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPullForLambdaImageUpdates",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:DescribeImages"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:968053399627:repository/peach-*"
+    },
+    {
+      "Sid": "IamPeachWorkloadRolesOnly",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:UpdateRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:ListRoleTags",
+        "iam:GetRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole",
+        "iam:CreateRole",
+        "iam:DeleteRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::968053399627:role/peach-ai-Role-*",
+        "arn:aws:iam::968053399627:role/peach-report-builder",
+        "arn:aws:iam::968053399627:role/peach-report-mailer",
+        "arn:aws:iam::968053399627:role/peach-report-scheduler"
+      ]
+    },
+    {
+      "Sid": "PassPeachWorkloadRolesToTheirServices",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": [
+        "arn:aws:iam::968053399627:role/peach-ai-Role-*",
+        "arn:aws:iam::968053399627:role/peach-report-builder",
+        "arn:aws:iam::968053399627:role/peach-report-mailer",
+        "arn:aws:iam::968053399627:role/peach-report-scheduler"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "lambda.amazonaws.com",
+            "scheduler.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "SqsPeachReportQueues",
+      "Effect": "Allow",
+      "Action": "sqs:*",
+      "Resource": "arn:aws:sqs:us-east-1:968053399627:peach-report-*"
+    },
+    {
+      "Sid": "DynamoMailState",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:Describe*",
+        "dynamodb:List*",
+        "dynamodb:UpdateTable",
+        "dynamodb:UpdateTimeToLive",
+        "dynamodb:UpdateContinuousBackups",
+        "dynamodb:TagResource",
+        "dynamodb:UntagResource",
+        "dynamodb:CreateTable"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-1:968053399627:table/peach-report-mail-state"
+    },
+    {
+      "Sid": "ReportsBucketConfigurationNotObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:Get*",
+        "s3:List*",
+        "s3:Put*",
+        "s3:DeleteBucketPolicy",
+        "s3:CreateBucket"
+      ],
+      "Resource": "arn:aws:s3:::peach-reports-968053399627-us-east-1"
+    },
+    {
+      "Sid": "LogsPeachLambdaGroups",
+      "Effect": "Allow",
+      "Action": "logs:*",
+      "Resource": [
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-agenda-parser",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-agenda-parser:*",
+        "arn:aws:logs:us-east-1:968053399627:log-group:/aws/lambda/peach-report-*"
+      ]
+    },
+    {
+      "Sid": "LogsAccountLevelReads",
+      "Effect": "Allow",
+      "Action": "logs:DescribeLogGroups",
+      "Resource": "*"
+    },
+    {
+      "Sid": "SchedulerPeachReports",
+      "Effect": "Allow",
+      "Action": "scheduler:*",
+      "Resource": [
+        "arn:aws:scheduler:us-east-1:968053399627:schedule-group/peach-reports",
+        "arn:aws:scheduler:us-east-1:968053399627:schedule/peach-reports/*"
+      ]
+    },
+    {
+      "Sid": "ReportsS3GatewayEndpoint",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:ModifyVpcEndpoint",
+        "ec2:CreateTags",
+        "ec2:DeleteTags"
+      ],
+      "Resource": "arn:aws:ec2:us-east-1:968053399627:vpc-endpoint/vpce-0e24aa58428a2f072"
+    },
+    {
+      "Sid": "Ec2DescribesForEndpointAndLambdaVpcConfig",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "KmsKeyMetadataOnly",
+      "Effect": "Allow",
+      "Action": "kms:DescribeKey",
+      "Resource": "arn:aws:kms:us-east-1:968053399627:key/ca6609f6-9d47-4344-8e37-81d176415ac0"
+    },
+    {
+      "Sid": "ProtectDataAndUsers",
+      "Effect": "Deny",
+      "Action": [
+        "cognito-idp:DeleteUserPool",
+        "cognito-idp:Admin*",
+        "cognito-idp:ListUsers",
+        "cognito-idp:ListUsersInGroup",
+        "s3:DeleteBucket",
+        "s3:GetObject*",
+        "s3:PutObject*",
+        "s3:DeleteObject*",
+        "dynamodb:DeleteTable",
+        "sqs:PurgeQueue",
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
