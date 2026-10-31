@@ -348,7 +348,7 @@ variable "report_notification_id" {
 
 variable "adoption_inventory_complete" {
   type        = bool
-  description = "Keep false until the complete live inventory/import mapping has been reviewed. Set true in the approved HCP workspace only."
+  description = "Fail-safe default false. Enabled in terraform.tfvars for the reviewed 2026-10-31 adoption."
   default     = false
   nullable    = false
 }

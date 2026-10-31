@@ -335,7 +335,7 @@ def test_active_imports_match_all_recorded_ids_and_configuration():
     assert renderer.check_file(live_inventory(), ROOT / "infra/imports.tf") == 41
     assert len(renderer.audit(live_inventory())) == 41
     assert re.search(
-        r"(?m)^adoption_inventory_complete\s*=\s*false$",
+        r"(?m)^adoption_inventory_complete\s*=\s*true$",
         (ROOT / "infra/terraform.tfvars").read_text(),
     )
     assert re.search(

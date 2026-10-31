@@ -10,24 +10,10 @@ variables {
   report_recipient_email = "recipient@example.com"
   cognito_jwks_json      = "{\"keys\":[{\"kid\":\"test-only\"}]}"
 }
-run "public_inputs_are_valid_and_adoption_stays_blocked" {
+# The gate-false block is covered by tests/migration.tftest.hcl
+# (unreviewed_adoption_is_blocked); here the committed gate is on and plans cleanly.
+run "public_inputs_are_valid_and_adoption_enabled" {
   command = plan
-  expect_failures = [
-    aws_cloudwatch_log_group.parser,
-    aws_iam_role.parser,
-    aws_cognito_user_pool.main,
-    aws_sqs_queue.builder_dlq,
-    aws_sqs_queue.scheduler_dlq,
-    aws_sqs_queue.mailer_failure,
-    aws_dynamodb_table.mail_state,
-    aws_cloudwatch_log_group.builder,
-    aws_cloudwatch_log_group.mailer,
-    aws_iam_role.builder,
-    aws_iam_role.mailer,
-    aws_s3_bucket.reports,
-    aws_vpc_endpoint.reports_s3,
-    aws_scheduler_schedule_group.reports
-  ]
   assert {
     condition = jsonencode({
       adoption_inventory_complete         = var.adoption_inventory_complete
@@ -65,8 +51,8 @@ run "public_inputs_are_valid_and_adoption_stays_blocked" {
     error_message = "All 31 public inputs must match the recorded inventory; do not guess or silently change existing settings."
   }
   assert {
-    condition     = var.adoption_inventory_complete == false && var.aws_account_id == "968053399627" && var.region == "us-east-1" && var.google_enabled && var.parser_enabled && var.report_schedule_state == "ENABLED"
-    error_message = "Observed inputs must preserve the account and enabled services, with adoption blocked."
+    condition     = var.adoption_inventory_complete == true && var.aws_account_id == "968053399627" && var.region == "us-east-1" && var.google_enabled && var.parser_enabled && var.report_schedule_state == "ENABLED"
+    error_message = "Observed inputs must preserve the account and enabled services, with the reviewed adoption enabled."
   }
   assert {
     condition     = var.reports_image_uri != var.parser_image_uri && var.cognito_email_constraints.min_length == "0" && var.cognito_email_constraints.max_length == "2048"

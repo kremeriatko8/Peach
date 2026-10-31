@@ -1,7 +1,6 @@
-# Preview candidate from the 2026-10-27 recorded inventory; refresh before handover.
-# These blocks do not execute imports. Default adoption_inventory_complete stays false.
-# CloudFormation still owns these resources. Only a speculative preview is appropriate.
-# Actual import apply requires separately verified retention and ownership transfer.
+# Reviewed IDs from the 2026-10-27 inventory, re-verified by HCP previews on 2026-10-29/31.
+# Retain was deployed and peach-auth/peach-ai/peach-reports were deleted on 2026-10-31,
+# so CloudFormation no longer owns these objects. The approved HCP apply imports them.
 # Generated offline from reviewed physical IDs. No infrastructure action executed.
 
 import {

@@ -1,8 +1,9 @@
 # Existing Peach environment: public settings observed 2026-10-27.
 # See docs/terraform-live-input-worksheet.json for provenance. Refresh before handover.
 # Secrets and other intentionally omitted inputs remain required workspace variables.
-# No active imports exist. Keep the adoption gate false until migration review.
-adoption_inventory_complete         = false
+# Adoption gate enabled 2026-10-31 after Retain was deployed and the three CFN
+# stacks were deleted; the 41 imports in imports.tf now take ownership.
+adoption_inventory_complete         = true
 project_name                        = "peach"
 region                              = "us-east-1"
 aws_account_id                      = "968053399627"

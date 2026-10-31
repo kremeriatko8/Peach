@@ -11,11 +11,11 @@ the 2026-10-27 read-only inventory, and the successful 2026-10-31 CLI preview.
   to 41 importable Terraform objects. Run the offline audit below before every
   live window.
 - `infra/imports.tf` has all 41 reviewed IDs, every managed object has
-  `prevent_destroy`, and `adoption_inventory_complete = false` remains the
-  committed default. There is no `ignore_changes` exception.
-- The source templates already contain both Retain policies for all 31 declarations,
-  but the last live snapshot recorded only 2/31 protected. Local YAML is not proof
-  that live stacks are safe to delete.
+  `prevent_destroy`, and `infra/terraform.tfvars` sets
+  `adoption_inventory_complete = true` since 2026-10-31 (the `variables.tf`
+  default stays false as a fail-safe). There is no `ignore_changes` exception.
+- Both Retain policies were deployed to all 31 declarations on 2026-10-31 and the
+  three stacks are deleted; see the status log below.
 - The accepted initial-plan exception is exactly four Terraform sensitivity-mark
   transitions: Google provider `provider_details.client_secret`, mailer policy,
   builder environment, and mailer environment. The plan is truthfully **41
@@ -24,6 +24,30 @@ the 2026-10-27 read-only inventory, and the successful 2026-10-31 CLI preview.
   update path for these equal unmarked values. This is still not a literal
   zero-update plan.
 - The required post-adoption plan has no exception: it must say `No changes`.
+
+## Status log
+
+**2026-10-31 — steps 4–6 complete (operator, AWS CloudShell, admin).**
+
+- HCP AWS identity split per Lab 7 Part 1 Step 7: `peach-hcp-terraform-read` now
+  trusts `run_phase:plan` only; new `peach-hcp-terraform-apply` trusts
+  `run_phase:apply` only (see `bootstrap/hcp-apply-role/`). Workspace variables
+  `TFC_AWS_PLAN_ROLE_ARN` and `TFC_AWS_APPLY_ROLE_ARN` set, `TFC_AWS_RUN_ROLE_ARN`
+  removed. Speculative plan `run-k748XvRM3CZaaYoB` with the plan role: 41 imports,
+  0 add, 4 sensitivity-only updates, 0 destroy.
+- Live templates were diffed against `auth.yaml`, `ai.yml`, `reports.yaml`: the
+  only differences were the two Retain keys. Change sets showed Modify only, no
+  replacements; the sole property entries were `Evaluation: Dynamic` re-reads of
+  unchanged ARNs (`Role.Arn`, `LogGroup.Arn`).
+- Retain deployed and confirmed with `get-template`: `peach-auth` 5/5,
+  `peach-ai` 6/6, `peach-reports` 20/20.
+- `peach-auth`, `peach-ai`, `peach-reports` deleted (`DELETE_COMPLETE` at
+  21:23, 21:24 and 21:25 UTC). No other stack was touched.
+- Verified after deletion: user pool `us-east-1_bs7cWxhJp` alive with 4 users;
+  `peach-agenda-parser`, `peach-report-builder`, `peach-report-mailer` Active;
+  bucket `peach-reports-968053399627-us-east-1` holds its 4 objects.
+- Gate enabled in the committed `terraform.tfvars` (replacing the workspace
+  override in step 6) for PR #2. Next: steps 7–9.
 
 ## Offline go/no-go checks
 
@@ -76,11 +100,11 @@ and the reviewed diff contains only migration documents/configuration/tests.
    detachment: deletion without first proving both policies would delete physical
    resources. Do not detach any other stack. Stop immediately on a failed delete,
    missing object, or changed identifier.
-6. **Enable the gate only as a temporary workspace override.** After all three
-   stacks are absent and resource checks pass, set HCP Terraform variable
-   `adoption_inventory_complete` to boolean `true` for the reviewed adoption run.
-   Do not edit the committed `terraform.tfvars`; restore the workspace override to
-   `false` after the operation. Reconfirm all seven HCP inputs and the OIDC role.
+6. **Enable the gate.** After all three stacks are absent and resource checks
+   pass, set `adoption_inventory_complete = true` in the committed
+   `infra/terraform.tfvars` on the PR branch (done 2026-10-31; this replaced the
+   originally planned temporary workspace override). Do not also add a workspace
+   variable for it. Reconfirm all seven HCP inputs and both OIDC phase roles.
 7. **Merge PR #2 to start the VCS run.** This must be the source of the HCP run,
    with auto-apply still disabled. Inspect the full private plan before any apply:
    41 correct imports; 0 adds/replacements/destructions; only the four documented
@@ -123,7 +147,7 @@ and the reviewed diff contains only migration documents/configuration/tests.
   determine exactly which mappings reached state, refresh the live inventory, and
   prepare a new reviewed plan for only the unresolved discrepancy.
 - A failed clean plan blocks template/import cleanup and the application output
-  cutover. Restore the gate override to false, keep resources protected, and
+  cutover. Revert the tfvars gate to false, keep resources protected, and
   reconcile HCL to reality rather than masking drift.
 
 ## Submission map

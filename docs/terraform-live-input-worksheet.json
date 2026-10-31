@@ -1,7 +1,7 @@
 {
   "status": "documentation-only; not Terraform input authorization",
   "observed_public_inputs": {
-    "adoption_inventory_complete": false,
+    "adoption_inventory_complete": true,
     "project_name": "peach",
     "region": "us-east-1",
     "aws_account_id": "968053399627",
