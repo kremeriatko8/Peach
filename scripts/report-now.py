@@ -62,10 +62,7 @@ def main() -> None:
     if not re.fullmatch(r"[a-z][a-z0-9-]{0,19}", project):
         raise ValueError("Invalid project name")
     queue_url = os.environ.get("REPORT_QUEUE_URL")
-    source = os.environ.get("PEACH_INFRA_SOURCE", "cloudformation")
-    if source not in ("cloudformation", "terraform"):
-        raise ValueError("Invalid infrastructure source")
-    if not queue_url and source == "terraform":
+    if not queue_url:
         result = subprocess.run(
             [
                 sys.executable,
@@ -79,15 +76,6 @@ def main() -> None:
         if result.returncode:
             raise ValueError("Terraform reporting outputs unavailable; no fallback")
         queue_url = json.loads(result.stdout)["WorkQueueUrl"]
-    if not queue_url and source == "cloudformation":
-        stack = aws(
-            ["cloudformation", "describe-stacks", "--stack-name", project + "-reports"]
-        )
-        outputs = {
-            row["OutputKey"]: row["OutputValue"]
-            for row in stack["Stacks"][0]["Outputs"]
-        }
-        queue_url = outputs["WorkQueueUrl"]
     if not re.fullmatch(
         r"https://sqs\.[a-z0-9-]+\.amazonaws\.com/[0-9]{12}/"
         + re.escape(project)

@@ -6,9 +6,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/auth-env.sh"
 unset GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
 mode="${1:-local}"
 [[ "${mode}" == local || "${mode}" == deployed ]] || die "usage: auth-config.sh [local|deployed]"
-aws cloudformation describe-stacks --region "${AWS_REGION}" \
-  --stack-name "${AUTH_STACK_NAME}" --query 'Stacks[0].Outputs' \
-  --output json --no-cli-pager | python3 -c '
+source "${ROOT}/scripts/infra-outputs.sh" || die "infrastructure output helper missing"
+peach_auth_outputs | python3 -c '
 import json, os, pathlib, sys
 from urllib.parse import urlsplit
 mode, root = sys.argv[1:]

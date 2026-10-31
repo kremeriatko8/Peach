@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -268,33 +269,16 @@ def test_operator_mutations_are_explicit_separate_and_bounded():
     assert redrive["Resource"].endswith(":peach-report-builder-dlq")
 
 
-def test_template_names_disabled_state_and_no_database_resources():
-    from test_reports_infra import Loader
-
-    resources = yaml.load((ROOT / "infra/reports.yaml").read_text(), Loader=Loader)[
-        "Resources"
-    ]
-    assert not any(r["Type"].startswith("AWS::RDS::") for r in resources.values())
-    assert not any(r["Type"] == "AWS::CloudWatch::Alarm" for r in resources.values())
-    for logical, suffix in (
-        ("BuilderRole", "builder"),
-        ("MailerRole", "mailer"),
-        ("SchedulerRole", "scheduler"),
-    ):
-        assert (
-            resources[logical]["Properties"]["RoleName"]["Sub"]
-            == f"${{ProjectName}}-report-{suffix}"
-        )
-    assert resources["WeeklySchedule"]["Properties"]["State"] == "DISABLED"
+def test_terraform_names_and_no_database_resources():
+    source = "\n".join(path.read_text() for path in (ROOT / "infra").glob("*.tf"))
+    assert 'resource "aws_db_' not in source and 'resource "aws_rds_' not in source
+    assert 'resource "aws_cloudwatch_metric_alarm"' not in source
+    iam = (ROOT / "infra/reports-iam.tf").read_text()
+    for suffix in ("builder", "mailer", "scheduler"):
+        assert f'name = "${{var.project_name}}-report-{suffix}"' in iam
     assert (
-        resources["WeeklySchedule"]["Properties"]["Name"]["Sub"]
-        == "${ProjectName}-weekly-report"
+        '"${var.project_name}-weekly-report"' in (ROOT / "infra/reports.tf").read_text()
     )
-    assert resources["S3Endpoint"]["Properties"]["VpcEndpointType"] == "Gateway"
-    assert resources["Builder"]["Properties"]["VpcConfig"]["SecurityGroupIds"] == {
-        "Ref": "BackendFunctionSecurityGroupIds"
-    }
-    assert "VpcConfig" not in resources["Mailer"]["Properties"]
 
 
 def test_automatic_backend_workflow_has_no_reporting_deployment():
@@ -393,14 +377,16 @@ def test_public_templates_and_docs_have_placeholders_not_inboxes():
     assert "reports-local/" in (ROOT / ".gitignore").read_text()
 
 
-def test_shared_endpoint_review_matches_template_and_is_not_identity_permission():
-    from test_reports_infra import Loader
-
-    template = yaml.load((ROOT / "infra/reports.yaml").read_text(), Loader=Loader)
-    assert (
-        policy("resource-s3-endpoint")
-        == template["Resources"]["S3Endpoint"]["Properties"]["PolicyDocument"]
+def test_shared_endpoint_review_matches_terraform_and_is_not_identity_permission():
+    endpoint = (
+        (ROOT / "infra/reports.tf")
+        .read_text()
+        .split('resource "aws_vpc_endpoint" "reports_s3"')[1]
     )
+    statement = policy("resource-s3-endpoint")["Statement"]
+    assert len(statement) == 1
+    for key, value in statement[0].items():
+        assert re.search(rf'(?m)^\s+{key}\s+= "{re.escape(value)}"$', endpoint)
     assert "resource-s3-endpoint" not in IDENTITY_NAMES
     for name, action in (
         ("runtime-builder", "s3:PutObject"),

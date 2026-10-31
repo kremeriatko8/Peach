@@ -128,7 +128,6 @@ FUNCTION_NAME="$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}"
   --output text --no-cli-pager)" || die "existing backend stack required"
 [[ -n "${FUNCTION_NAME}" && "${FUNCTION_NAME}" != None ]] || die "existing backend function required"
 MIGRATION_STACK_NAME="${MIGRATION_STACK_NAME:-${PROJECT_NAME}-migrations}"
-AUTH_STACK_NAME="${AUTH_STACK_NAME:-${PROJECT_NAME}-auth}"
 
 # All sensitive files are private and removed on exit.
 WORK_DIR="$(mktemp -d)"
@@ -147,9 +146,11 @@ python3 "${ROOT}/scripts/schema-release.py" "${PLAN_ARGS[@]}"
 SCHEMA_RELEASE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["kind"])' "${PLAN_FILE}")"
 PREFLIGHT_MODE="${SCHEMA_RELEASE}"
 [[ "${RELEASE_MODE}" != preparation ]] || PREFLIGHT_MODE=preparation
-aws cloudformation describe-stacks --stack-name "${AUTH_STACK_NAME}" \
-  --query 'Stacks[0].Outputs' --output json --no-cli-pager \
+source "${ROOT}/scripts/infra-outputs.sh" || die "infrastructure output helper missing"
+peach_auth_outputs \
   | python3 "${ROOT}/scripts/cognito-snapshot.py" > "${AUTH_FILE}"
+# HCP output access is no longer needed by the image build or AWS release tools.
+unset TF_TOKEN_app_terraform_io
 python3 "${ROOT}/scripts/backend-preflight.py" "${STACK_NAME}" "${FUNCTION_NAME}" \
   "${AUTH_FILE}" "${PARAMS_FILE}" "${RUNNER_PARAMS}" "${PREFLIGHT_MODE}"
 

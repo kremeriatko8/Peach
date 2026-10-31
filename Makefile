@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain deploy-frontend destroy-frontend github-role validate-auth deploy-auth auth-config backend-auth-config
+.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain deploy-frontend destroy-frontend github-role auth-config backend-auth-config
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -79,12 +79,7 @@ destroy-frontend: ## Delete the frontend stack (bucket + distribution)
 github-role: ## Create the IAM role GitHub Actions assumes to deploy (OIDC, no keys)
 	./scripts/github-role.sh
 
-validate-auth: ## Validate Cognito infrastructure locally with cfn-lint (no AWS calls)
-	cfn-lint --regions us-east-1 --template infra/auth.yaml
-
-deploy-auth: infra-plan ## Deprecated: infrastructure changes go through reviewed HCP plans
-
-auth-config: ## Read auth outputs into frontend/.env.local for localhost (no deployment)
+auth-config: ## Read Terraform auth outputs into frontend/.env.local for localhost (no deployment)
 	./scripts/auth-config.sh local
 
 backend-auth-config: ## Download public auth outputs/JWKS for local backend verification
@@ -100,32 +95,25 @@ report-owners: ## List anonymous owner numbers from the verified disposable loca
 report-owner: ## Configure a listed local owner: make report-owner OWNER=1
 	python3 scripts/report-local.py --select-owner "$(OWNER)"
 
-.PHONY: report-now reports-prepare reports-validate
-report-now: ## MUTATES AWS: enqueue an on-demand report after authorized deployment
+.PHONY: report-now
+report-now: ## MUTATES AWS: enqueue an on-demand report (queue URL from Terraform outputs)
 	python3 scripts/report-now.py --week "$(WEEK)"
-
-reports-prepare: ## Offline private artifacts only; DOES NOT DEPLOY
-	python3 scripts/prepare-reports.py --parameters "$(PARAMETERS_FILE)"
-
-reports-validate: ## Validate reporting CloudFormation locally; no AWS calls
-	cfn-lint --regions us-east-1 --template infra/reports.yaml
 
 # TEXT is exported directly by make, never interpolated into shell source.
 export TEXT
-.PHONY: llm-hello parse ai-validate ai-prepare-deploy
+.PHONY: llm-hello parse budget-validate
 llm-hello: ## PAID AWS CALL: requires PEACH_APPROVE_PAID_INFERENCE=yes
 	cd backend && uv run python -m app.ai.cli hello
 
 parse: ## PAID AWS CALL: requires PEACH_APPROVE_PAID_INFERENCE=yes
 	cd backend && uv run python -m app.ai.cli parse
 
-ai-validate: ## Offline validation only
-	cfn-lint --regions us-east-1 --template infra/ai.yml infra/budget.yml
+budget-validate: ## Offline cfn-lint of the cost budget template
+	cfn-lint --regions us-east-1 --template infra/budget.yml
 
-ai-prepare-deploy: ## AWS MUTATION: create disabled AI change set after approval
-	./scripts/deploy-ai.sh
-
-
+# Cognito, reporting and the agenda parser are managed by HCP Terraform (peach-dev).
+# Changes go through a PR: HCP plans it, and a human applies it in HCP after merge.
+# No target here runs terraform apply.
 .PHONY: infra-fmt infra-validate infra-plan
 infra-fmt: ## Format local Terraform; no cloud access
 	terraform -chdir=infra fmt -recursive
@@ -133,5 +121,5 @@ infra-fmt: ## Format local Terraform; no cloud access
 infra-validate: ## Isolated validation and mock tests; no AWS/HCP access
 	bash scripts/terraform-check.sh
 
-infra-plan: ## Explicitly approved remote plan only
+infra-plan: ## Speculative remote plan in HCP (cannot be applied); needs PEACH_APPROVE_INFRA_PLAN=yes
 	bash scripts/terraform-plan.sh

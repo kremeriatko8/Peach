@@ -49,6 +49,20 @@ the 2026-10-27 read-only inventory, and the successful 2026-10-31 CLI preview.
 - Gate enabled in the committed `terraform.tfvars` (replacing the workspace
   override in step 6) for PR #2. Next: steps 7–9.
 
+**2026-10-31/11-01 — steps 7–10 complete.**
+
+- PR #2 speculative plan `run-r7c9GARf8QKnkmb2`: 41 to import, 0 to add, 4 to
+  change (sensitivity-only, identical values), 0 to destroy.
+- Merged as `b667259`. VCS run `run-LeywB4kQGLuosjZ6` was confirmed and applied
+  with the apply role: 41 imported, 0 added, 4 changed, 0 destroyed. State
+  `sv-Jp3GhjyonxLX9ymR`, 41 resources.
+- Post-adoption plan `run-ahX5M2sv77cM1ixm` (CLI, remote) ended with `No changes.
+  Your infrastructure matches the configuration.` Cross-checked by plan-only
+  `run-6X7aby9Tk4FkkN2C`. Saved as `docs/lab7-final-plan.txt`.
+- Cleanup PR: removed `imports.tf`, the three templates, the stack deploy scripts
+  and import/preview tooling; made Terraform the only output source; ADR 0007
+  accepted. Its PR plan must again be `No changes`.
+
 ## Offline go/no-go checks
 
 Run these in the migration worktree only. They make no cloud calls:

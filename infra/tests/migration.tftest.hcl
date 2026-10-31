@@ -8,6 +8,12 @@ mock_provider "aws" {
   mock_resource "aws_sqs_queue" {
     defaults = { arn = "arn:aws:sqs:us-east-1:123456789012:test-only" }
   }
+  mock_resource "aws_s3_bucket" {
+    defaults = { arn = "arn:aws:s3:::test-only-reports" }
+  }
+  mock_resource "aws_dynamodb_table" {
+    defaults = { arn = "arn:aws:dynamodb:us-east-1:123456789012:table/test-only" }
+  }
   mock_resource "aws_cognito_user_pool" {
     defaults = { id = "us-east-1_TESTONLY" }
   }
@@ -94,6 +100,48 @@ run "preserve_auth_and_report_safety" {
   assert {
     condition     = jsondecode(aws_iam_role_policy.parser.policy).Statement[0].Action == "bedrock:InvokeModel" && aws_iam_role.parser.permissions_boundary == "arn:aws:iam::123456789012:policy/PeachAgendaParserBoundary"
     error_message = "Preserve the parser permission boundary and inference scope."
+  }
+}
+
+# Ported from the deleted CloudFormation template tests (test_reports_infra.py,
+# test_ai_infra.py) so the safety properties keep a test after the cutover.
+run "preserve_report_data_mailer_and_lambda_limits" {
+  command = plan
+  assert {
+    condition     = length(aws_s3_bucket_server_side_encryption_configuration.reports.rule) == 1 && alltrue([for r in aws_s3_bucket_server_side_encryption_configuration.reports.rule : alltrue([for d in r.apply_server_side_encryption_by_default : d.sse_algorithm == "AES256"])]) && alltrue([for r in aws_s3_bucket_ownership_controls.reports.rule : r.object_ownership == "BucketOwnerEnforced"])
+    error_message = "Reports must stay SSE-S3 encrypted with bucket-owner-enforced ownership."
+  }
+  assert {
+    condition     = aws_s3_bucket_lifecycle_configuration.reports.rule[0].expiration[0].days == 90 && contains(aws_s3_bucket_notification.reports.lambda_function[0].events, "s3:ObjectCreated:*") && aws_s3_bucket_notification.reports.lambda_function[0].filter_prefix == "reports/" && aws_s3_bucket_notification.reports.lambda_function[0].filter_suffix == ".csv"
+    error_message = "Preserve 90-day expiry and the reports/*.csv mailer notification."
+  }
+  assert {
+    condition     = alltrue([for s in jsondecode(aws_s3_bucket_policy.reports.policy).Statement : s.Effect == "Deny"]) && jsondecode(aws_s3_bucket_policy.reports.policy).Statement[0].Condition.Bool["aws:SecureTransport"] == "false" && !strcontains(aws_s3_bucket_policy.reports.policy, "SourceVpce")
+    error_message = "The bucket policy must only deny insecure transport and must not pin a VPC endpoint."
+  }
+  assert {
+    condition     = aws_vpc_endpoint.reports_s3.vpc_endpoint_type == "Gateway" && jsondecode(aws_vpc_endpoint.reports_s3.policy).Statement[0].Sid == "PreserveExistingS3Authorization"
+    error_message = "The shared S3 gateway endpoint must keep its pass-through policy."
+  }
+  assert {
+    condition     = alltrue([for q in [aws_sqs_queue.work, aws_sqs_queue.builder_dlq, aws_sqs_queue.scheduler_dlq, aws_sqs_queue.mailer_failure] : q.sqs_managed_sse_enabled]) && jsondecode(aws_iam_role_policy.scheduler.policy).Statement[0].Action == "sqs:SendMessage" && length(jsondecode(aws_iam_role_policy.scheduler.policy).Statement[0].Resource) == 2
+    error_message = "All report queues stay encrypted; the scheduler may only send to the work queue and its DLQ."
+  }
+  assert {
+    condition     = aws_dynamodb_table.mail_state.billing_mode == "PAY_PER_REQUEST" && aws_lambda_function_event_invoke_config.mailer.maximum_retry_attempts == 2 && aws_lambda_function_event_invoke_config.mailer.destination_config[0].on_failure[0].destination == aws_sqs_queue.mailer_failure.arn
+    error_message = "Preserve mailer dedup state and failure routing."
+  }
+  assert {
+    condition     = length([for s in jsondecode(aws_iam_role_policy.mailer.policy).Statement : s if s.Action == "ses:SendRawEmail" && can(s.Condition.StringEquals["ses:FromAddress"]) && can(s.Condition["ForAllValues:StringEquals"]["ses:Recipients"])]) == 1 && !anytrue([for s in jsondecode(aws_iam_role_policy.mailer.policy).Statement : s.Action == "*"])
+    error_message = "The mailer may only send from the configured sender to the configured recipient."
+  }
+  assert {
+    condition     = length(aws_lambda_function.mailer.vpc_config) == 0 && !contains(keys(aws_lambda_function.mailer.environment[0].variables), "REPORT_OWNER_SUB") && aws_lambda_function.builder.timeout == 120 && aws_lambda_event_source_mapping.builder.batch_size == 1 && aws_lambda_function.builder.image_config[0].command == tolist(["app.reporting.builder.handler"]) && toset(aws_lambda_function.builder.vpc_config[0].security_group_ids) == toset(var.backend_function_security_group_ids)
+    error_message = "Preserve builder limits/network and keep the mailer outside the VPC without owner identity."
+  }
+  assert {
+    condition     = aws_lambda_function.parser.memory_size == 512 && aws_lambda_function.parser.timeout == 30 && aws_lambda_function.parser.image_config[0].command == tolist(["app.ai.agenda_lambda.handler"]) && !strcontains(aws_iam_role_policy.parser.policy, "bedrock-mantle")
+    error_message = "Preserve parser limits, handler and Bedrock-only inference scope."
   }
 }
 

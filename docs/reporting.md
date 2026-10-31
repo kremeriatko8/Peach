@@ -1,5 +1,11 @@
 # Phase 3 reporting — architecture and deployment guide
 
+> **Since 2026-10-31 these resources are managed by HCP Terraform**
+> (`infra/reports.tf`, `infra/reports-iam.tf`; ADR 0007). The `peach-reports`
+> stack was deleted after Retain was deployed. The CloudFormation deployment
+> steps below are a historical record of Phase 3. Don't run them. Change
+> reporting infrastructure through a PR and an HCP plan/apply.
+
 Current deployment status (2026-10-11, Europe/Kyiv): `peach-reports` is
 CREATE_COMPLETE. The manual W40 CSV and email are verified. The existing weekly
 schedule was explicitly enabled for October 12 at 07:00 Kyiv; the real scheduled

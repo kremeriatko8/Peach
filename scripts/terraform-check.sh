@@ -4,7 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 command -v terraform >/dev/null || { echo 'terraform >=1.13.5 is required' >&2; exit 1; }
 terraform -chdir="${ROOT}/infra" fmt -check -recursive
-python3 "${ROOT}/scripts/terraform-imports.py" "${ROOT}/docs/terraform-live-import-inventory.json" --check
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 # Copy HCL only. Never copy .terraform, state, plans, private inputs, or credentials.
@@ -22,11 +21,6 @@ export AWS_SHARED_CREDENTIALS_FILE=/dev/null AWS_CONFIG_FILE=/dev/null
 # init -backend=false downloads public provider packages, never contacts HCP/AWS.
 terraform -chdir="${WORK}" init -backend=false -input=false -lockfile=readonly
 terraform -chdir="${WORK}" validate
-
-# The complete candidate (including imports) has been audited and validated above.
-# Mocks exercise resource behavior, not import reads of real IDs. Quarantine only
-# this temporary copy; never remove or rewrite the repository's active imports.
-mv "${WORK}/imports.tf" "${WORK}/imports.tf.validated"
 
 mkdir -p "${WORK}/tests"
 cp "${ROOT}"/infra/tests/*.tftest.hcl "${WORK}/tests/"

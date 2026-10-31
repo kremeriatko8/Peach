@@ -121,6 +121,12 @@ SITE_URL="$(outputs SiteUrl)"
 # Fetch only public auth outputs; this never deploys the auth stack.
 AUTH_EXPECTED_SITE_URL="${SITE_URL}" "${ROOT}/scripts/auth-config.sh" deployed
 
+PARSER_URL="$(python3 "${ROOT}/scripts/infra-outputs.py" ai | python3 -c 'import json,sys; print(json.load(sys.stdin)["ParserUrl"])')"
+[[ "${PARSER_URL}" =~ ^https://[A-Za-z0-9.-]+/?$ ]] \
+  || die "Terraform parser URL must be an HTTPS origin"
+# Never pass the HCP state/output token into dependency installation or UI builds.
+unset TF_TOKEN_app_terraform_io
+
 # --- build ------------------------------------------------------------------
 
 log "installing dependencies"

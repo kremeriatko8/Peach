@@ -24,7 +24,7 @@ def test_parser_creation_requires_administrator_owned_boundary():
     assert create["Condition"]["ArnEquals"]["iam:PermissionsBoundary"] == (
         "arn:aws:iam::968053399627:policy/PeachAgendaParserBoundary"
     )
-    assert "PermissionsBoundary: !Sub" in (ROOT / "infra/ai.yml").read_text()
+    assert "PeachAgendaParserBoundary" in (ROOT / "infra/ai-iam.tf").read_text()
     boundary = json.loads((POLICIES / "parser-runtime-boundary.json").read_text())
     actions = [a for s in boundary["Statement"] for a in s["Action"]]
     assert set(actions) == {
