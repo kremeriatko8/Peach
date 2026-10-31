@@ -1,0 +1,80 @@
+# Lab 7 — terraform plan immediately after migration (HCP workspace ooad-kremeriatko8/peach-dev)
+# Date: 2026-10-31 (UTC). Configuration: main @ b667259 (merge of PR #2).
+# Adoption apply: run-LeywB4kQGLuosjZ6 -> 41 imported, 0 added, 4 changed, 0 destroyed; state sv-Jp3GhjyonxLX9ymR.
+# This plan: `terraform plan` (Terraform 1.13.5, remote execution) -> run-ahX5M2sv77cM1ixm.
+# Cross-check: API plan-only run-6X7aby9Tk4FkkN2C on the same config: 0 import/add/change/destroy, has-changes=false.
+# Verbatim CLI output follows.
+
+Running plan in HCP Terraform. Output will stream here. Pressing Ctrl-C
+will stop streaming the logs, but will not stop the plan running remotely.
+
+Preparing the remote plan...
+
+The remote workspace is configured to work with configuration at
+infra relative to the target repository.
+
+Terraform will upload the contents of the following directory,
+excluding files or directories as defined by a .terraformignore file
+at /private/tmp/claude-501/-Users-sofiakremer-Documents-peach-Peach/bb923f6a-3019-46c7-ac58-3cb45dfdac69/scratchpad/finalplan/.terraformignore (if it is present),
+in order to capture the filesystem context the remote workspace expects:
+    /private/tmp/claude-501/-Users-sofiakremer-Documents-peach-Peach/bb923f6a-3019-46c7-ac58-3cb45dfdac69/scratchpad/finalplan
+
+To view this run in a browser, visit:
+https://app.terraform.io/app/ooad-kremeriatko8/peach-dev/runs/run-ahX5M2sv77cM1ixm
+
+Waiting for the plan to start...
+
+Terraform v1.13.5
+on linux_amd64
+Initializing plugins and modules...
+aws_vpc_endpoint.reports_s3: Refreshing state... [id=vpce-0e24aa58428a2f072]
+aws_iam_role.mailer: Refreshing state... [id=peach-report-mailer]
+aws_sqs_queue.builder_dlq: Refreshing state... [id=https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-builder-dlq]
+aws_cloudwatch_log_group.parser: Refreshing state... [id=/aws/lambda/peach-agenda-parser]
+aws_iam_role.parser: Refreshing state... [id=peach-ai-Role-VyBHkDA80Fxu]
+aws_dynamodb_table.mail_state: Refreshing state... [id=peach-report-mail-state]
+aws_cloudwatch_log_group.builder: Refreshing state... [id=/aws/lambda/peach-report-builder]
+aws_scheduler_schedule_group.reports: Refreshing state... [id=peach-reports]
+aws_sqs_queue.scheduler_dlq: Refreshing state... [id=https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-scheduler-dlq]
+aws_s3_bucket.reports: Refreshing state... [id=peach-reports-968053399627-us-east-1]
+aws_iam_role.builder: Refreshing state... [id=peach-report-builder]
+aws_cloudwatch_log_group.mailer: Refreshing state... [id=/aws/lambda/peach-report-mailer]
+aws_cognito_user_pool.main: Refreshing state... [id=us-east-1_bs7cWxhJp]
+aws_sqs_queue.mailer_failure: Refreshing state... [id=https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-mailer-failures]
+aws_sqs_queue.work: Refreshing state... [id=https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-work]
+aws_iam_role.scheduler: Refreshing state... [id=peach-report-scheduler]
+aws_sqs_queue_redrive_allow_policy.builder_dlq: Refreshing state... [id=https://sqs.us-east-1.amazonaws.com/968053399627/peach-report-builder-dlq]
+aws_iam_role_policy.parser: Refreshing state... [id=peach-ai-Role-VyBHkDA80Fxu:parser]
+aws_iam_role_policy.mailer: Refreshing state... [id=peach-report-mailer:report-mailer]
+aws_iam_role_policy.builder: Refreshing state... [id=peach-report-builder:report-builder]
+aws_cognito_identity_provider.google[0]: Refreshing state... [id=us-east-1_bs7cWxhJp:Google]
+aws_cognito_user_pool_domain.main: Refreshing state... [id=peach-auth-diby4tampbgny]
+aws_iam_role_policy.scheduler: Refreshing state... [id=peach-report-scheduler:send-report-work]
+aws_s3_bucket_server_side_encryption_configuration.reports: Refreshing state... [id=peach-reports-968053399627-us-east-1]
+aws_lambda_function.mailer: Refreshing state... [id=peach-report-mailer]
+aws_s3_bucket_ownership_controls.reports: Refreshing state... [id=peach-reports-968053399627-us-east-1]
+aws_s3_bucket_public_access_block.reports: Refreshing state... [id=peach-reports-968053399627-us-east-1]
+aws_s3_bucket_policy.reports: Refreshing state... [id=peach-reports-968053399627-us-east-1]
+aws_lambda_function.builder: Refreshing state... [id=peach-report-builder]
+aws_s3_bucket_lifecycle_configuration.reports: Refreshing state... [id=peach-reports-968053399627-us-east-1]
+aws_cognito_user_pool_client.frontend: Refreshing state... [id=4vscaj9gks4n63ds52gbhi5ggn]
+aws_scheduler_schedule.weekly: Refreshing state... [id=peach-reports/peach-weekly-report]
+aws_cognito_managed_login_branding.frontend: Refreshing state...
+aws_lambda_function.parser: Refreshing state... [id=peach-agenda-parser]
+aws_lambda_event_source_mapping.builder: Refreshing state... [id=3910d1ed-06a8-4867-a77e-9192b19d8c6d]
+aws_lambda_permission.mailer_s3: Refreshing state... [id=peach-reports-MailerS3Permission-Qbsido0QF2oJ]
+aws_lambda_function_event_invoke_config.mailer: Refreshing state... [id=peach-report-mailer:$LATEST]
+aws_s3_bucket_notification.reports: Refreshing state... [id=peach-reports-968053399627-us-east-1]
+aws_lambda_permission.parser_invoke: Refreshing state... [id=peach-ai-InvokePermission-1aneGP8egfuW]
+aws_lambda_function_url.parser: Refreshing state... [id=peach-agenda-parser]
+aws_lambda_permission.parser_url: Refreshing state... [id=peach-ai-UrlPermission-qhG0kDsGDpX5]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+
+─────────────────────────────────────────────────────────────────────────────
+
+Note: You didn't use the -out option to save this plan, so Terraform can't
+guarantee to take exactly these actions if you run "terraform apply" now.

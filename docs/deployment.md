@@ -1,3 +1,9 @@
+> Lab 7: auth, reporting and parser infrastructure is owned by HCP Terraform since
+> 2026-10-31 (ADR 0007). This workflow reads the Cognito outputs from Terraform
+> using the `PEACH_TF_OUTPUTS_TOKEN` secret, and never plans or applies. The
+> backend/database/site CloudFormation guards below are unchanged. Reporting and
+> parser CloudFormation procedures elsewhere are historical and must not be used.
+
 # Backend CI/CD and exceptional releases
 
 Every push to `main`, without path filters, runs `.github/workflows/deploy-backend.yml`.
@@ -114,8 +120,8 @@ release, performed after the backend. No frontend or Cognito behavior changed he
 
 Pushing application code does **not** deploy `peach-reports`, update reporting
 Lambda functions, enable schedules, provision SES identities, enqueue messages or
-send mail. The backend validation job may lint `infra/reports.yaml` and import
-reporting handlers without creating reporting resources.
+send mail. The backend validation job imports reporting handlers without creating
+reporting resources. Reporting infrastructure changes go through HCP Terraform.
 
 The first reporting deployment requires a separately reviewed CREATE change set
 and explicit execution authorization, verified SES sender/recipient readiness,

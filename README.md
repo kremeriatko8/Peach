@@ -1,22 +1,11 @@
 # Peach
 
-> **Lab 7 — local migration preparation:** Terraform for Cognito, weekly reports
-> and the agenda parser is prepared under `infra/`, but no live migration has
-> occurred. The three CloudFormation templates remain with undeployed retention
-> policies. Read [the migration runbook](docs/terraform-migration.md),
-> [resource inventory](docs/terraform-migration-inventory.md), and
-> [ADR 0007](docs/adr/0007-terraform.md) before infrastructure operations.
-> `make infra-validate` performs isolated validation and mocked plan tests;
-> `make infra-plan` requires explicit remote-plan approval. Infrastructure applies
-> belong to reviewed HCP runs. `deploy-auth` and `ai-prepare-deploy` now point to
-> planning; historical deployment instructions below are not migration commands.
-> All 41 import blocks are prepared locally with adoption disabled. Use
-> [the first-preview procedure](docs/terraform-first-preview.md) for an unmerged PR;
-> pushing directly to main triggers backend deployment.
-> Existing application output lookups stay on CloudFormation until explicit
-> `PEACH_INFRA_SOURCE=terraform` cutover after successful imports.
-
-
+> **Lab 7 — Terraform:** Cognito, weekly reporting and the agenda parser are
+> managed by HCP Terraform (workspace `ooad-kremeriatko8/peach-dev`, root module
+> `infra/`). They were imported from CloudFormation on 2026-10-31 without being
+> re-created. See [Infrastructure with Terraform](#13a-infrastructure-with-terraform-hcp)
+> and [ADR 0007](docs/adr/0007-terraform.md). Backend, frontend, migration runner,
+> GitHub OIDC role and budget are still CloudFormation.
 
 A monorepo starter: **FastAPI** backend, **Next.js + shadcn/ui** frontend, **PostgreSQL** database,
 everything runnable with a single `docker compose up`.
@@ -90,6 +79,12 @@ Peach/
 │   └── deploy-backend.yml        # deploys every main push after release preflight
 │
 ├── infra/
+│   ├── versions.tf               # Terraform: HCP cloud block (peach-dev), AWS provider pin
+│   ├── auth.tf                   # Terraform: Cognito user pool, client, domain, Google IdP
+│   ├── reports.tf, reports-iam.tf# Terraform: Scheduler → SQS → builder → S3 → mailer
+│   ├── ai.tf, ai-iam.tf          # Terraform: agenda parser Lambda + function URL
+│   ├── variables.tf, outputs.tf  # Terraform inputs/outputs (secrets are HCP variables)
+│   ├── terraform.tfvars          # non-secret inputs; tests/ and input-tests/ hold mock tests
 │   ├── backend.yaml              # CloudFormation: Lambda + function URL + Aurora Serverless v2
 │   ├── frontend.yaml             # CloudFormation: S3 + CloudFront (+ optional custom domain)
 │   └── github-oidc.yaml          # CloudFormation: the role Actions assumes
@@ -553,30 +548,57 @@ build native and those two steps unnecessary.
 
 The frontend is not wired to CI — `make deploy-frontend` stays a local command for now.
 
+## 13a. Infrastructure with Terraform (HCP)
+
+Terraform owns 41 AWS objects: the Cognito user pool and its client, domain,
+branding and Google provider; the reporting pipeline (Scheduler, SQS queues,
+builder/mailer Lambdas, S3 bucket, DynamoDB dedup table, gateway endpoint, IAM);
+and the agenda parser Lambda with its function URL. State lives in HCP Terraform
+workspace `ooad-kremeriatko8/peach-dev`, pinned by the `cloud` block in
+`infra/versions.tf`.
+
+**Changing infrastructure**
+
+1. Edit `infra/*.tf` on a branch. Run `make infra-fmt` and `make infra-validate`.
+   The second one runs fmt, validate and mocked plan tests with no AWS or HCP access.
+2. Open a PR. HCP runs a speculative plan for every PR touching `infra/**`, and the
+   result shows up as a status check. Review the plan as well as the diff.
+3. Merge to `main`. HCP queues a real run. Auto-apply is off: someone with apply
+   rights reviews the plan in HCP and clicks **Confirm & Apply**.
+4. `make infra-plan` (needs `PEACH_APPROVE_INFRA_PLAN=yes` and `terraform login`)
+   runs an extra speculative plan from your checkout. HCP never applies CLI plans on
+   this VCS-connected workspace. No Make target or workflow runs `terraform apply`.
+
+HCP reaches AWS through OIDC with two roles: `peach-hcp-terraform-read` for plans
+and `peach-hcp-terraform-apply` for applies (`bootstrap/hcp-apply-role/`). Secrets
+(Google client secret, database URL, report owner and email addresses) are
+sensitive workspace variables, never `terraform.tfvars`.
+
+**Reading outputs.** Scripts read public values with
+`scripts/infra-outputs.py {auth,reports,ai}`. It runs
+`terraform -chdir=infra output -json <group>_outputs` and checks the keys against
+`docs/terraform-output-contract.json`. Locally, run `terraform login` and
+`terraform -chdir=infra init` once. In CI, the backend workflow uses the
+`PEACH_TF_OUTPUTS_TOKEN` secret.
+
+**Ordering with application CI.** When a change needs both, infrastructure goes
+first: merge and apply the Terraform change, then ship application code that
+relies on it. Lambda image digests for the builder, mailer and parser are Terraform
+inputs, so releasing a new reporting or parser image is a Terraform change too.
+
 ## Cognito authentication
 
-`infra/auth.yaml` defines the email-based user pool, public authorization-code
-client, Cognito prefix domain, Managed Login v2 branding, and conditional Google
-identity provider. The Essentials tier is required for Managed Login v2; see
+`infra/auth.tf` (HCP Terraform) defines the email-based user pool, public
+authorization-code client, Cognito prefix domain, Managed Login v2 branding, and
+conditional Google identity provider. The Essentials tier is required for Managed Login v2; see
 [Cognito pricing](https://aws.amazon.com/cognito/pricing/) for usage charges.
 Item endpoints verify Cognito access tokens and enforce subject-based ownership.
 Health endpoints remain public.
 
-To enable Google on the existing stack, store the Google OAuth web client values
-in root gitignored `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and set
-`COGNITO_DOMAIN_PREFIX` to the existing prefix. Then, when ready to deploy:
-
-```bash
-make deploy-auth
-```
-
-This explicitly deploys only the existing `${PROJECT_NAME:-peach}-auth` stack in
-`us-east-1` (override with `AUTH_STACK_NAME`). It requires both Google credentials,
-checks the prefix against the existing stack, and leaves frontend/local origins
-and all other parameters unchanged. It does not deploy the frontend or backend.
-Tracing is disabled, and credentials stream through stdin to CloudFormation;
-there is no secret parameter file, literal secret argument, or secret output.
-The real `.env` is not rewritten. Do not add debugging that prints credentials.
+Google federation is controlled by `google_enabled` in `infra/terraform.tfvars`
+and the HCP workspace variables `google_client_id` and `google_client_secret`
+(sensitive). To rotate the secret, update the variable in HCP and run a plan and
+apply there. Never put it in a tracked file.
 
 The Google web client should register:
 
@@ -588,7 +610,7 @@ frontend callbacks are `https://diby4tampbgny.cloudfront.net/auth/callback/` and
 `http://localhost:3000/auth/callback/`, with logout destinations at each origin
 followed by `/`. Keep registered URLs and trailing slashes exact.
 
-For local development, fetch public stack outputs without deploying:
+For local development, fetch public Terraform outputs without deploying:
 
 ```bash
 make auth-config
@@ -598,10 +620,10 @@ make up
 `auth-config` writes only five public auth values to gitignored
 `frontend/.env.local`, preserving other entries. The bind-mounted Next.js dev
 server reads this file; direct `cd frontend && pnpm dev` does too. Restart an
-existing dev server after changing it. `AUTH_STACK_NAME` and AWS credentials are
-resolved from root `.env`, with exported shell variables taking precedence.
-Local callback URLs come from stack outputs; a different `FRONTEND_PORT` also
-requires updating the stack's localhost origin separately.
+existing dev server after changing it. Outputs come from HCP Terraform, so run
+`terraform login` and `terraform -chdir=infra init` first. Local callback URLs come
+from those outputs; a different `FRONTEND_PORT` also requires changing
+`localhost_origin` in `infra/terraform.tfvars` through a reviewed plan.
 
 `make deploy-frontend` reads the deployed auth outputs into the same public
 configuration file before building. It does not deploy auth. Public values are
@@ -622,16 +644,13 @@ users out of Google itself. The header displays email and Sign out when signed i
 The export keeps `.html` files and the existing CloudFront rewrite. Next.js slash
 normalization is disabled so registered callback URLs are preserved locally too.
 
-Local infrastructure validation (install and activate a `cfn-lint` environment):
+Local infrastructure validation:
 
 ```bash
-make validate-auth
+make infra-validate
 ```
 
-This performs no AWS calls. AWS permissions must cover identity-provider
-create/read/update/delete and app-client update on the existing pool. Existing
-stack settings, public outputs, and runtime Google credentials are not verified
-by local linting. Backend item requests require verified access tokens; see the ownership rollout below.
+This performs no AWS or HCP calls. The live settings are checked by the HCP plan. Backend item requests require verified access tokens; see the ownership rollout below.
 
 ## 14. Where to take it next
 
@@ -706,10 +725,11 @@ It can incur Lambda/log charges when invoked and wakes Aurora during migrations.
 The public Function URL stays `AuthType: NONE`; FastAPI performs authentication.
 
 Deployment IAM needs access to the migration stack and migration Lambda, plus
-`iam:PassRole` for the existing execution role and auth-stack output reads.
+`iam:PassRole` for the existing execution role. Auth outputs are read from HCP
+Terraform, which needs `PEACH_TF_OUTPUTS_TOKEN` in CI.
 The repository’s GitHub role template uses project-prefix stack/function scopes;
 verify actual attached policies, including the local deployment user’s policy.
-`MIGRATION_STACK_NAME` and `AUTH_STACK_NAME` override default stack names. Do not
+`MIGRATION_STACK_NAME` overrides the default migration stack name. Do not
 run simultaneous local and CI deployments. GitHub’s backend workflow deploys on
 push to main; pushing this work is a production action requiring prior review.
 
@@ -964,20 +984,19 @@ are added here.
 
 ### Event-driven reporting (Phase 3, local implementation only)
 
-`infra/reports.yaml` defines disabled-by-default Monday 07:00 Europe/Kyiv
+`infra/reports.tf` and `infra/reports-iam.tf` (HCP Terraform) define the Monday 07:00 Europe/Kyiv
 Scheduler → SQS → VPC builder → private S3 → outside-VPC mailer → SES. It reuses
 the Phase 2 report core, existing database/network and an immutable backend image.
 Conditional S3 writes suppress duplicate publications; DynamoDB claims/leases
 suppress ordinary duplicate emails with a documented SES/state-update limitation.
 
-`make reports-validate` validates locally; `make reports-prepare
-PARAMETERS_FILE=.env.reports-parameters.local` prepares private ignored artifacts
-without AWS calls. **After a separately authorized deployment**, `make report-now
-WEEK=2026-W40` performs a mutating SQS SendMessage, never a direct Lambda invocation.
-It must not be executed as part of this implementation phase. `make report-local`
+`make infra-validate` validates locally. The schedule state comes from
+`report_schedule_state` in `infra/terraform.tfvars`. `make report-now WEEK=2026-W40`
+performs a mutating SQS SendMessage, never a direct Lambda invocation. It reads the
+queue URL from Terraform outputs. `make report-local`
 remains unchanged. Backend production deployment remains automatic on every main push, with
 validation and narrowly scoped schema-release gates; manual dispatch is also
-available. No reporting deploy/activation workflow or automatic IAM expansion is provided.
+available. Reporting infrastructure changes go only through HCP Terraform.
 
 See [the reporting guide](docs/reporting.md) for every resource/setting, trusted
 owner/inbox configuration, SES and permissions prerequisites, **NOT EXECUTED**
@@ -991,8 +1010,8 @@ workflow/shell/template validation and a Lambda image build before OIDC deployme
 Ordinary releases skip snapshots and migration invocation when their manifest
 matches successful release evidence. Missing/changed migration evidence requires
 exact approval plus a fresh manual snapshot; failures stop deployment. The frontend
-remains manually deployed, and the first reporting stack uses a separately reviewed
-change set. See [the CI/CD release policy](docs/deployment.md) for revision `0004`
+remains manually deployed, and reporting/auth/parser infrastructure changes go
+through HCP Terraform. See [the CI/CD release policy](docs/deployment.md) for revision `0004`
 preparation, credentials, failure handling, rollback and future reporting updates.
 
 ## Paste an agenda (local implementation; not deployed)

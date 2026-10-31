@@ -3,7 +3,6 @@
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -12,8 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def read_outputs(group):
-    if os.environ.get("PEACH_INFRA_SOURCE", "cloudformation") != "terraform":
-        raise ValueError("Terraform output reads require explicit cutover")
     # -json with a named output returns that value, not the complete output set.
     result = subprocess.run(
         [

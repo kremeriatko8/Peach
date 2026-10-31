@@ -72,7 +72,7 @@ jobs:
       - name: CloudFormation lint
         run: |
           uv tool run --from cfn-lint==1.57.2 cfn-lint --regions us-east-1 --ignore-checks W1011 --template infra/backend.yaml
-          uv tool run --from cfn-lint==1.57.2 cfn-lint --regions us-east-1 --template infra/migrations.yaml infra/reports.yaml
+          uv tool run --from cfn-lint==1.57.2 cfn-lint --regions us-east-1 --template infra/migrations.yaml
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - name: Validate ARM64 Lambda image without publishing
@@ -101,6 +101,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+      # Auth outputs come from HCP Terraform (org/workspace pinned in infra/versions.tf).
+      # The token only needs to read outputs; this job never plans or applies.
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.5
+          terraform_wrapper: false
+      - name: Initialize Terraform output backend
+        working-directory: infra
+        run: terraform init -input=false -lockfile=readonly
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.PEACH_TF_OUTPUTS_TOKEN }}
       - name: Assume the deploy role
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -118,6 +129,7 @@ jobs:
           PEACH_APPROVED_MIGRATION_SHA256: ${{ vars.PEACH_APPROVED_MIGRATION_SHA256 }}
           PEACH_RELEASE_SNAPSHOT_ID: ${{ vars.PEACH_RELEASE_SNAPSHOT_ID }}
           PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+          TF_TOKEN_app_terraform_io: ${{ secrets.PEACH_TF_OUTPUTS_TOKEN }}
       - name: Summary
         if: always()
         run: |

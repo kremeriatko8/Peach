@@ -2,7 +2,7 @@
 # See docs/terraform-live-input-worksheet.json for provenance. Refresh before handover.
 # Secrets and other intentionally omitted inputs remain required workspace variables.
 # Adoption gate enabled 2026-10-31 after Retain was deployed and the three CFN
-# stacks were deleted; the 41 imports in imports.tf now take ownership.
+# stacks were deleted; HCP run run-LeywB4kQGLuosjZ6 imported all 41 objects.
 adoption_inventory_complete         = true
 project_name                        = "peach"
 region                              = "us-east-1"

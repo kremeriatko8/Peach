@@ -32,8 +32,12 @@ class DeploymentTests(unittest.TestCase):
                 "backend-preflight.py",
                 "check-backend-changeset.py",
                 "schema-release.py",
+                "infra-outputs.sh",
+                "infra-outputs.py",
             ):
                 shutil.copy(ROOT / "scripts" / name, root / "scripts")
+            (root / "docs").mkdir()
+            shutil.copy(ROOT / "docs/terraform-output-contract.json", root / "docs")
             (root / "backend/migrations/versions").mkdir(parents=True)
             shutil.copytree(
                 ROOT / "backend/migrations/versions",
@@ -128,6 +132,15 @@ elif args[:2]==['ecr','get-login-password']: print('synthetic')
                 + repr(sys.executable)
                 + "]+sys.argv[1:])\n",
             )
+            public_auth = json.loads(
+                (ROOT / "docs/terraform-output-contract.json").read_text()
+            )["auth"]
+            executable(
+                "terraform",
+                "import json\nprint("
+                + repr(json.dumps({k: "test-only-public" for k in public_auth}))
+                + ")\n",
+            )
             events = root / "events"
             params = root / "params"
             env = {
@@ -194,6 +207,17 @@ elif args[:2]==['ecr','get-login-password']: print('synthetic')
                 self.assertFalse(
                     any(c["command"][0] in ("ecr", "secretsmanager") for c in commands)
                 )
+
+    def test_auth_outputs_come_from_terraform_not_old_stack(self):
+        result, commands, _ = self.run_deployment("ordinary")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any(c["stack"] == "peach-auth" for c in commands))
+        self.assertTrue(
+            any(
+                c["command"] == ["cloudformation", "execute-change-set"]
+                for c in commands
+            )
+        )
 
     def test_ci_ignores_local_env_and_verifies_oidc_identity(self):
         result, _, _ = self.run_deployment("ordinary", ci=True)

@@ -130,10 +130,10 @@ require exact migration manifest approval and a verified fresh manual snapshot. 
 
 ## Authentication deployment and public configuration
 
-`make deploy-auth` runs `scripts/deploy-auth.sh` to update only the existing auth
-stack with Google credentials from gitignored root `.env`. It preserves other
-stack parameters and streams the secret through stdin, never a parameter file.
-`make auth-config` reads CloudFormation outputs into public `frontend/.env.local`
+Cognito is managed by HCP Terraform (`infra/auth.tf`, ADR 0007). Google
+credentials are sensitive HCP workspace variables, changed through a reviewed
+plan and apply in HCP.
+`make auth-config` reads Terraform outputs into public `frontend/.env.local`
 settings for localhost; frontend deployment reads deployed settings before build.
 The browser stores its OIDC session and PKCE state in session storage. `/login/`
 starts Managed Login; `/auth/callback/` is a static page processed by the global
@@ -237,7 +237,8 @@ core is reused with an optional scoped object-key metadata argument;
 `make report-local` retains its interface and output convention. The mailer
 has no database URL or owner subject. Runtime boto3 is explicitly locked.
 
-`infra/reports.yaml` contains the separate reporting stack: four encrypted SQS
+`infra/reports.tf` and `infra/reports-iam.tf` (HCP Terraform, formerly the
+`peach-reports` stack) contain the reporting resources: four encrypted SQS
 queues, two container Lambdas/log groups, three scoped roles, event-source mapping,
 private AES256/lifecycle S3 bucket/notification/policy/permission, gateway endpoint,
 on-demand retained mail state, mailer async failure destination and disabled Kyiv

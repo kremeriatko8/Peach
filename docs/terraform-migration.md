@@ -83,48 +83,26 @@ Only non-secret reviewed configuration belongs in Git. No local state is created
 by the local validation path. A separate bootstrap state, if needed later, is
 also sensitive and must not be committed.
 
-## Application integration and cutover
+## Application integration (cut over 2026-11-01)
 
-During preparation `PEACH_INFRA_SOURCE` defaults to `cloudformation`, preserving
-existing auth/report lookups. Setting it to `terraform` explicitly enables the
-new named public-output reader. Any other value fails; Terraform lookup failure
-never falls back to CFN. Frontend builds also read the Terraform parser URL
-after cutover; the HCP token is unset before dependency/image builds. The auth compatibility object retains the former output
-keys for the existing public Cognito/JWKS configuration code. Individual outputs
-also support `terraform -chdir=infra output -raw cognito_client_id`, `parser_url`,
-`report_queue_url`, etc. Never read the full state/output set just to build UI config.
+Terraform is the only source for auth, reporting and parser outputs. The
+`PEACH_INFRA_SOURCE` switch and its CloudFormation fallback were removed in the
+cleanup PR. `scripts/infra-outputs.py {auth,reports,ai}` runs
+`terraform output -json <group>_outputs` and accepts only the keys in
+`docs/terraform-output-contract.json`. The auth object keeps the former
+CloudFormation output keys, so the existing Cognito/JWKS code didn't change.
+Single values are also available with
+`terraform -chdir=infra output -raw cognito_client_id`, `parser_url`,
+`report_queue_url`, etc. A failed lookup never falls back to anything.
 
-After verified adoption, set PEACH_INFRA_SOURCE=terraform consistently in local
-release environments and the GitHub repository variable. The backend workflow's
-Terraform setup/backend-init steps activate only for that repository value. It
-needs TF_CLOUD_ORGANIZATION, TF_WORKSPACE and a secret PEACH_TF_OUTPUTS_TOKEN with
-custom Read outputs only access to the intended workspace where available. The
-built-in Read role includes complete state access and is broader; restrict who
-can administer or use the token. It has no apply authorization.
-The token is for HCP output access; AWS OIDC remains the application deployment
-credential. Credentials are never embedded in HCL or backend command arguments.
-Configure and verify this access during the separately approved live phase,
-**before detaching CFN**, and freeze deployments during the short ownership gap.
-
-`deploy-auth` and `ai-prepare-deploy` are deprecated Make aliases for infra-plan;
-their old shell entry points stop with guidance instead of mutating AWS. The
-historical agenda release driver refuses Terraform mode. Offline reports-prepare
-and CFN/IAM historical tests remain available for retention handover; their
-parameter artifacts are not Terraform inputs and must not be deployed after
-cutover. Backend, migrations, frontend, budget and GitHub role CFN targets remain
-outside the lab's three-stack migration.
-
-Terraform owns the parser/reporting function images and entire environments.
-GitHub Actions continues deploying the API through its existing guarded backend
-CFN path. Do not add Lambda image/environment ignore_changes to mask competing
-writers. Promote a new reporting/parser digest with a reviewed HCP change; API
-releases do not automatically promote it. Terraform does not build or publish images.
-
-For changes requiring both roads: publish compatible code/image first when the
-new infrastructure references its digest; apply additive infrastructure/config
-before deploying code that requires it. Use expand/contract releases where either
-order alone would break compatibility. Do not run both writers concurrently or
-remove old configuration until consumers have migrated.
+Locally, run `terraform login` and `terraform -chdir=infra init`. In CI, the
+backend workflow initializes the cloud backend with the `PEACH_TF_OUTPUTS_TOKEN`
+secret. The organization and workspace are pinned in `versions.tf`, so no
+TF_CLOUD_ORGANIZATION/TF_WORKSPACE variables are needed. Use a team token
+limited to reading outputs where your HCP plan allows it. The built-in Read
+role exposes complete state. The token is unset before dependency and image
+builds, and it has no apply rights. AWS OIDC remains the application deployment
+credential.
 
 ## Approved live phase: ordered runbook (NOT EXECUTED)
 

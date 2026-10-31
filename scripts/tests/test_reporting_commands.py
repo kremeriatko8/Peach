@@ -26,21 +26,13 @@ def test_report_now_uses_sqs_only_and_no_owner_fields(monkeypatch, capsys):
 
     def fake_run(command, **kwargs):
         commands.append(command)
-        if command[1] == "cloudformation":
+        if command[0] != "aws":
+            assert command[1].endswith("infra-outputs.py") and command[2] == "reports"
             return SimpleNamespace(
                 returncode=0,
                 stdout=json.dumps(
                     {
-                        "Stacks": [
-                            {
-                                "Outputs": [
-                                    {
-                                        "OutputKey": "WorkQueueUrl",
-                                        "OutputValue": "https://sqs.us-east-1.amazonaws.com/123456789012/peach-report-work",
-                                    }
-                                ]
-                            }
-                        ]
+                        "WorkQueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/peach-report-work"
                     }
                 ),
             )
@@ -80,65 +72,6 @@ def test_report_now_rejects_external_queue_and_target_arguments(monkeypatch):
     )
     with pytest.raises(SystemExit):
         runner.main()
-
-
-def parameters():
-    return {
-        "ProjectName": "peach",
-        "ImageUri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/peach-backend@sha256:"
-        + "a" * 64,
-        "Architecture": "arm64",
-        "VpcId": "vpc-test",
-        "SubnetIds": "subnet-a,subnet-b",
-        "RouteTableIds": "rtb-test",
-        "BackendFunctionSecurityGroupIds": "sg-test",
-        "DatabaseUrl": "postgresql+asyncpg://local:test@db/peach",
-        "ReportOwnerSub": "synthetic-owner",
-        "ReportScopeId": "lab-scope",
-        "ReportRecipientEmail": "recipient@example.test",
-        "ReportFromEmail": "sender@example.test",
-        "ReportTimezone": "Europe/Kyiv",
-    }
-
-
-def test_preparation_is_offline_private_and_disabled(tmp_path, capsys):
-    runner = module("prepare-reports")
-    source = tmp_path / "source.json"
-    source.write_text(
-        json.dumps(
-            [{"ParameterKey": k, "ParameterValue": v} for k, v in parameters().items()]
-        )
-    )
-    runner.prepare(source, tmp_path / "output")
-    for name in ("parameters.json", "review.json"):
-        assert (tmp_path / "output" / name).stat().st_mode & 0o777 == 0o600
-    review = json.loads((tmp_path / "output/review.json").read_text())
-    assert not review["deployment_executed"] and review["schedule_state"] == "DISABLED"
-    assert "synthetic-owner" not in capsys.readouterr().out
-
-
-@pytest.mark.parametrize(
-    ("key", "value"),
-    [
-        ("ImageUri", "repo:latest"),
-        ("ReportTimezone", "UTC"),
-        ("AllowDirectEvents", "true"),
-        ("ReportScopeId", "../../escape"),
-        ("ReportFromEmail", "bad\nheader"),
-    ],
-)
-def test_preparation_rejects_unsafe_configuration(tmp_path, key, value):
-    runner = module("prepare-reports")
-    values = {**parameters(), key: value}
-    source = tmp_path / "source.json"
-    source.write_text(
-        json.dumps(
-            [{"ParameterKey": k, "ParameterValue": v} for k, v in values.items()]
-        )
-    )
-    with pytest.raises(ValueError):
-        runner.prepare(source, tmp_path / "output")
-    assert not (tmp_path / "output").exists()
 
 
 def test_enqueue_error_sanitizes_credentials_without_retry(monkeypatch):

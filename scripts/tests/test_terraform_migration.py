@@ -28,42 +28,6 @@ def inventory():
     return json.loads((ROOT / "docs/terraform-migration-inventory.json").read_text())
 
 
-class Loader(yaml.SafeLoader):
-    pass
-
-
-Loader.add_multi_constructor(
-    "!",
-    lambda loader, tag, node: (
-        loader.construct_scalar(node)
-        if isinstance(node, yaml.ScalarNode)
-        else loader.construct_sequence(node)
-        if isinstance(node, yaml.SequenceNode)
-        else loader.construct_mapping(node)
-    ),
-)
-
-
-@pytest.mark.parametrize(
-    "filename,count", [("auth.yaml", 5), ("reports.yaml", 20), ("ai.yml", 6)]
-)
-def test_all_original_resources_retained_and_accounted_for(filename, count):
-    template = yaml.load((ROOT / "infra" / filename).read_text(), Loader=Loader)
-    resources = template["Resources"]
-    assert len(resources) == count
-    assert all(
-        r["DeletionPolicy"] == r["UpdateReplacePolicy"] == "Retain"
-        for r in resources.values()
-    )
-    stack = filename.split(".")[0]
-    mapped = {
-        r["logical_id"].split(".")[0]
-        for r in inventory()["resources"]
-        if r["stack"] == stack
-    }
-    assert mapped == set(resources)
-
-
 def test_inventory_exactly_covers_protected_terraform_resources():
     text = "\n".join(p.read_text() for p in (ROOT / "infra").glob("*.tf"))
     addresses = {
@@ -84,48 +48,6 @@ def test_inventory_exactly_covers_protected_terraform_resources():
         r["import_id"] is None and r["strategy"] == "import"
         for r in inventory()["resources"]
     )
-
-
-def reviewed_inventory():
-    result = inventory()
-    for i, row in enumerate(result["resources"]):
-        row["import_id"] = f"test-only-id-{i}"
-    return result
-
-
-def test_import_renderer_refuses_unfilled_ids_and_unknown_addresses():
-    renderer = module("terraform-imports")
-    with pytest.raises(ValueError):
-        renderer.render(inventory())
-    complete = reviewed_inventory()
-    assert renderer.render(complete).count("\nimport {") == 41
-    for mutate in (
-        lambda r: r.pop(),
-        lambda r: r.append(copy.deepcopy(r[0])),
-        lambda r: r[0].update(terraform_address="aws_s3_bucket.unreviewed"),
-        lambda r: r[0].update(import_id='${file("/private/test-only")}'),
-        lambda r: r[0].update(strategy="recreate"),
-    ):
-        invalid = copy.deepcopy(complete)
-        mutate(invalid["resources"])
-        with pytest.raises(ValueError):
-            renderer.render(invalid)
-
-
-def test_only_verified_absent_google_can_be_omitted():
-    renderer = module("terraform-imports")
-    complete = reviewed_inventory()
-    row = next(
-        r for r in complete["resources"] if "google[0]" in r["terraform_address"]
-    )
-    row.update(strategy="absent", import_id=None)
-    with pytest.raises(ValueError):
-        renderer.render(complete)
-    row["absence_verified"] = True
-    assert renderer.render(complete).count("\nimport {") == 40
-    complete["resources"][0].update(strategy="absent", absence_verified=True)
-    with pytest.raises(ValueError):
-        renderer.render(complete)
 
 
 def synthetic_plan(importing=True):
@@ -199,15 +121,8 @@ def test_plan_guard_fails_closed(change):
         module("terraform-review-plan").review(plan, "adopt")
 
 
-def test_output_helper_requires_cutover_and_redacts_failures(monkeypatch):
+def test_output_helper_redacts_failures(monkeypatch):
     helper = module("infra-outputs")
-    monkeypatch.delenv("PEACH_INFRA_SOURCE", raising=False)
-    monkeypatch.setattr(
-        helper.subprocess, "run", lambda *a, **k: pytest.fail("Service called")
-    )
-    with pytest.raises(ValueError):
-        helper.read_outputs("auth")
-    monkeypatch.setenv("PEACH_INFRA_SOURCE", "terraform")
     monkeypatch.setattr(
         helper.subprocess,
         "run",
@@ -220,7 +135,6 @@ def test_output_helper_requires_cutover_and_redacts_failures(monkeypatch):
 
 def test_only_named_allowlisted_outputs_are_read(monkeypatch):
     helper = module("infra-outputs")
-    monkeypatch.setenv("PEACH_INFRA_SOURCE", "terraform")
     contract = json.loads((ROOT / "docs/terraform-output-contract.json").read_text())
     values = {key: "test-only-public-value" for key in contract["auth"]}
     calls = []
@@ -237,28 +151,26 @@ def test_only_named_allowlisted_outputs_are_read(monkeypatch):
         helper.read_outputs("auth")
 
 
-def test_retired_deploy_and_unapproved_plan_paths_never_call_cloud(tmp_path):
+def test_unapproved_plan_path_never_calls_cloud(tmp_path):
     fake = tmp_path / "aws"
     fake.write_text("#!/bin/sh\nexit 93\n")
     fake.chmod(0o755)
     env = {**os.environ, "PATH": f"{tmp_path}:/usr/bin:/bin"}
     env.pop("PEACH_APPROVE_INFRA_PLAN", None)
-    for name in ("deploy-auth.sh", "deploy-ai.sh", "terraform-plan.sh"):
-        result = subprocess.run(
-            ["/bin/bash", str(ROOT / "scripts" / name)],
-            env=env,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert result.returncode == 1
-        assert "HCP" in result.stderr
+    result = subprocess.run(
+        ["/bin/bash", str(ROOT / "scripts/terraform-plan.sh")],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "HCP" in result.stderr
 
 
-def test_report_now_terraform_path_never_looks_up_old_stack(monkeypatch):
+def test_report_now_reads_queue_from_terraform_not_old_stack(monkeypatch):
     runner = module("report-now")
     monkeypatch.setenv("PROJECT_NAME", "peach")
-    monkeypatch.setenv("PEACH_INFRA_SOURCE", "terraform")
     monkeypatch.delenv("REPORT_QUEUE_URL", raising=False)
     monkeypatch.setattr("sys.argv", ["report-now.py", "--week", "2026-W40"])
     calls = []
@@ -285,7 +197,6 @@ def test_report_now_terraform_path_never_looks_up_old_stack(monkeypatch):
 
 def test_report_now_does_not_fallback_on_terraform_output_failure(monkeypatch):
     runner = module("report-now")
-    monkeypatch.setenv("PEACH_INFRA_SOURCE", "terraform")
     monkeypatch.delenv("REPORT_QUEUE_URL", raising=False)
     monkeypatch.setattr("sys.argv", ["report-now.py", "--week", "2026-W40"])
     calls = []
@@ -299,18 +210,6 @@ def test_report_now_does_not_fallback_on_terraform_output_failure(monkeypatch):
     with pytest.raises(ValueError):
         runner.main()
     assert len(calls) == 1
-
-
-def test_import_renderer_rejects_duplicate_physical_resources():
-    complete = reviewed_inventory()
-    queues = [
-        r
-        for r in complete["resources"]
-        if r["terraform_address"].startswith("aws_sqs_queue.")
-    ]
-    queues[1]["import_id"] = queues[0]["import_id"]
-    with pytest.raises(ValueError):
-        module("terraform-imports").render(complete)
 
 
 def test_clean_guard_rejects_output_changes_and_handles_absent_google():
@@ -330,10 +229,7 @@ def live_inventory():
     return json.loads((ROOT / "docs/terraform-live-import-inventory.json").read_text())
 
 
-def test_active_imports_match_all_recorded_ids_and_configuration():
-    renderer = module("terraform-imports")
-    assert renderer.check_file(live_inventory(), ROOT / "infra/imports.tf") == 41
-    assert len(renderer.audit(live_inventory())) == 41
+def test_adoption_gate_on_with_fail_safe_default():
     assert re.search(
         r"(?m)^adoption_inventory_complete\s*=\s*true$",
         (ROOT / "infra/terraform.tfvars").read_text(),
@@ -347,63 +243,45 @@ def test_active_imports_match_all_recorded_ids_and_configuration():
     )
 
 
-@pytest.mark.parametrize(
-    "mutation",
-    [
-        "wrong_id",
-        "wrong_account",
-        "wrong_region",
-        "wrong_mapping",
-        "missing",
-        "duplicate",
-    ],
-)
-def test_live_import_audit_rejects_inventory_corruption(mutation):
-    value = live_inventory()
-    if mutation == "wrong_id":
-        value["resources"][0]["import_id"] = "test-only-wrong-id"
-    elif mutation == "wrong_account":
-        value["account_id"] = "123456789012"
-    elif mutation == "wrong_region":
-        value["region"] = "eu-west-1"
-    elif mutation == "wrong_mapping":
-        value["resources"][0]["logical_id"] = "UnrecordedResource"
-    elif mutation == "missing":
-        value["resources"].pop()
-    else:
-        value["resources"].append(copy.deepcopy(value["resources"][0]))
-    with pytest.raises(ValueError):
-        module("terraform-imports").audit(value)
-
-
-def test_import_file_check_rejects_missing_duplicate_or_wrong_blocks(tmp_path):
-    renderer = module("terraform-imports")
-    text = renderer.render(live_inventory())
-    path = tmp_path / "imports.tf"
-    actual = renderer.parse_imports(text)
-    address, identifier = next(iter(actual.items()))
-    block = f"import {{\n to = {address}\n id = {json.dumps(identifier)}\n}}"
-    for invalid in (
-        "",
-        text + "\n" + block,
-        text.replace(identifier, "test-only-wrong-id", 1),
-        text + '\nresource "aws_s3_bucket" "extra" {}',
+def test_post_adoption_cleanup_removed_imports_and_cloudformation_paths():
+    for gone in (
+        "infra/imports.tf",
+        "infra/generated.tf",
+        "infra/auth.yaml",
+        "infra/reports.yaml",
+        "infra/ai.yml",
+        "scripts/deploy-auth.sh",
+        "scripts/deploy-ai.sh",
+        "scripts/terraform-imports.py",
     ):
-        path.write_text(invalid)
-        with pytest.raises(ValueError):
-            renderer.check_file(live_inventory(), path)
+        assert not (ROOT / gone).exists(), gone
+    hcl = "\n".join(p.read_text() for p in (ROOT / "infra").glob("*.tf"))
+    assert not re.search(r"(?m)^import\s*\{", hcl)
+    checked = [ROOT / "Makefile", *(ROOT / ".github/workflows").glob("*.yml")]
+    checked += [*(ROOT / "scripts").glob("*.sh"), *(ROOT / "scripts").glob("*.py")]
+    for path in checked:
+        lines = path.read_text().splitlines()
+        text = "\n".join(line for line in lines if not line.lstrip().startswith("#"))
+        assert "PEACH_INFRA_SOURCE" not in text, path
+        assert not re.search(r"terraform\s+apply", text), path
+        for stack in ("-auth", "-reports", "-ai"):
+            assert not re.search(
+                rf"cloudformation (deploy|create-change-set).*{stack}\b", text
+            ), path
+    makefile = (ROOT / "Makefile").read_text()
+    for target in ("deploy-auth:", "ai-prepare-deploy:", "reports-prepare:"):
+        assert target not in makefile
+    assert "infra-plan:" in makefile
 
 
-def test_mock_runner_validates_imports_before_excluding_only_temporary_copy():
+def test_check_script_isolates_credentials_before_validation():
     script = (ROOT / "scripts/terraform-check.sh").read_text()
-    assert script.index("--check") < script.index(" init -backend=false")
     assert (
-        script.index(" validate")
-        < script.index('mv "${WORK}/imports.tf"')
+        script.index("AWS_SHARED_CREDENTIALS_FILE=/dev/null")
+        < script.index(" init -backend=false")
+        < script.index(" validate")
         < script.index(" test -test-directory=tests")
     )
-    assert 'mv "${ROOT}/infra/imports.tf"' not in script
-    assert "AWS_SHARED_CREDENTIALS_FILE=/dev/null" in script
 
 
 def test_publication_checks_cannot_run_application_deploy():
@@ -503,12 +381,6 @@ def test_failed_plan_partition_preserves_all_41_imports():
     assert not evaluated.intersection(pending)
     assert evaluated.union(pending) == set(expected)
     assert all(value == expected[address] for address, value in pending.items())
-    assert (
-        module("terraform-imports").check_file(
-            live_inventory(), ROOT / "infra/imports.tf"
-        )
-        == 41
-    )
 
 
 def sensitivity_only_fixture(importing):
