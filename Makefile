@@ -82,8 +82,7 @@ github-role: ## Create the IAM role GitHub Actions assumes to deploy (OIDC, no k
 validate-auth: ## Validate Cognito infrastructure locally with cfn-lint (no AWS calls)
 	cfn-lint --regions us-east-1 --template infra/auth.yaml
 
-deploy-auth: ## Update only the existing auth stack with Google credentials from .env
-	./scripts/deploy-auth.sh
+deploy-auth: infra-plan ## Deprecated: infrastructure changes go through reviewed HCP plans
 
 auth-config: ## Read auth outputs into frontend/.env.local for localhost (no deployment)
 	./scripts/auth-config.sh local
@@ -125,3 +124,14 @@ ai-validate: ## Offline validation only
 
 ai-prepare-deploy: ## AWS MUTATION: create disabled AI change set after approval
 	./scripts/deploy-ai.sh
+
+
+.PHONY: infra-fmt infra-validate infra-plan
+infra-fmt: ## Format local Terraform; no cloud access
+	terraform -chdir=infra fmt -recursive
+
+infra-validate: ## Isolated validation and mock tests; no AWS/HCP access
+	bash scripts/terraform-check.sh
+
+infra-plan: ## Explicitly approved remote plan only
+	bash scripts/terraform-plan.sh

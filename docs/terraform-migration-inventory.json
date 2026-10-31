@@ -1,0 +1,415 @@
+{
+  "status": "local-preparation-only",
+  "resources": [
+    {
+      "stack": "ai",
+      "logical_id": "InvokePermission",
+      "terraform_address": "aws_lambda_permission.parser_invoke",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "function_name/statement_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_permission.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "ai",
+      "logical_id": "LogGroup",
+      "terraform_address": "aws_cloudwatch_log_group.parser",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "log_group_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/cloudwatch_log_group.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "ai",
+      "logical_id": "Parser",
+      "terraform_address": "aws_lambda_function.parser",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "function_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "ai",
+      "logical_id": "Role",
+      "terraform_address": "aws_iam_role.parser",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "role_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/iam_role.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "ai",
+      "logical_id": "Role.Policies",
+      "terraform_address": "aws_iam_role_policy.parser",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "role_name:policy_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/iam_role_policy.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "ai",
+      "logical_id": "Url",
+      "terraform_address": "aws_lambda_function_url.parser",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "function_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function_url.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "ai",
+      "logical_id": "UrlPermission",
+      "terraform_address": "aws_lambda_permission.parser_url",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "function_name/statement_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_permission.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "auth",
+      "logical_id": "GoogleIdentityProvider",
+      "terraform_address": "aws_cognito_identity_provider.google[0]",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "user_pool_id:Google",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/cognito_identity_provider.html.markdown",
+      "notes": "Conditional: mark absent only if authorized inventory confirms Google federation is absent."
+    },
+    {
+      "stack": "auth",
+      "logical_id": "ManagedLoginBranding",
+      "terraform_address": "aws_cognito_managed_login_branding.frontend",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "user_pool_id,managed_login_branding_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/cognito_managed_login_branding.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "auth",
+      "logical_id": "UserPool",
+      "terraform_address": "aws_cognito_user_pool.main",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "user_pool_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/cognito_user_pool.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "auth",
+      "logical_id": "UserPoolClient",
+      "terraform_address": "aws_cognito_user_pool_client.frontend",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "user_pool_id/client_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/cognito_user_pool_client.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "auth",
+      "logical_id": "UserPoolDomain",
+      "terraform_address": "aws_cognito_user_pool_domain.main",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "domain_prefix",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/cognito_user_pool_domain.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "Builder",
+      "terraform_address": "aws_lambda_function.builder",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "function_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "BuilderDlq",
+      "terraform_address": "aws_sqs_queue.builder_dlq",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "queue_url",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/sqs_queue.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "BuilderDlq.RedriveAllowPolicy",
+      "terraform_address": "aws_sqs_queue_redrive_allow_policy.builder_dlq",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "queue_url",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/sqs_queue_redrive_allow_policy.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "BuilderLogGroup",
+      "terraform_address": "aws_cloudwatch_log_group.builder",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "log_group_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/cloudwatch_log_group.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "BuilderMapping",
+      "terraform_address": "aws_lambda_event_source_mapping.builder",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "mapping_uuid",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_event_source_mapping.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "BuilderRole",
+      "terraform_address": "aws_iam_role.builder",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "role_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/iam_role.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "BuilderRole.Policies",
+      "terraform_address": "aws_iam_role_policy.builder",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "role_name:policy_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/iam_role_policy.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "MailState",
+      "terraform_address": "aws_dynamodb_table.mail_state",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "table_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/dynamodb_table.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "Mailer",
+      "terraform_address": "aws_lambda_function.mailer",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "function_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "MailerAsyncConfig",
+      "terraform_address": "aws_lambda_function_event_invoke_config.mailer",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "function_name:$LATEST",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_function_event_invoke_config.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "MailerFailureQueue",
+      "terraform_address": "aws_sqs_queue.mailer_failure",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "queue_url",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/sqs_queue.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "MailerLogGroup",
+      "terraform_address": "aws_cloudwatch_log_group.mailer",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "log_group_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/cloudwatch_log_group.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "MailerRole",
+      "terraform_address": "aws_iam_role.mailer",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "role_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/iam_role.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "MailerRole.Policies",
+      "terraform_address": "aws_iam_role_policy.mailer",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "role_name:policy_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/iam_role_policy.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "MailerS3Permission",
+      "terraform_address": "aws_lambda_permission.mailer_s3",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "function_name/statement_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/lambda_permission.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "ReportsBucket",
+      "terraform_address": "aws_s3_bucket.reports",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "bucket_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/s3_bucket.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "ReportsBucket.BucketEncryption",
+      "terraform_address": "aws_s3_bucket_server_side_encryption_configuration.reports",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "bucket_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/s3_bucket_server_side_encryption_configuration.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "ReportsBucket.LifecycleConfiguration",
+      "terraform_address": "aws_s3_bucket_lifecycle_configuration.reports",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "bucket_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/s3_bucket_lifecycle_configuration.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "ReportsBucket.NotificationConfiguration",
+      "terraform_address": "aws_s3_bucket_notification.reports",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "bucket_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/s3_bucket_notification.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "ReportsBucket.OwnershipControls",
+      "terraform_address": "aws_s3_bucket_ownership_controls.reports",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "bucket_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/s3_bucket_ownership_controls.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "ReportsBucket.PublicAccessBlockConfiguration",
+      "terraform_address": "aws_s3_bucket_public_access_block.reports",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "bucket_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/s3_bucket_public_access_block.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "ReportsBucketPolicy",
+      "terraform_address": "aws_s3_bucket_policy.reports",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "bucket_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/s3_bucket_policy.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "S3Endpoint",
+      "terraform_address": "aws_vpc_endpoint.reports_s3",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "vpce_id",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/vpc_endpoint.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "ScheduleGroup",
+      "terraform_address": "aws_scheduler_schedule_group.reports",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "group_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/scheduler_schedule_group.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "SchedulerDlq",
+      "terraform_address": "aws_sqs_queue.scheduler_dlq",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "queue_url",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/sqs_queue.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "SchedulerRole",
+      "terraform_address": "aws_iam_role.scheduler",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "role_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/iam_role.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "SchedulerRole.Policies",
+      "terraform_address": "aws_iam_role_policy.scheduler",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "role_name:policy_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/iam_role_policy.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "WeeklySchedule",
+      "terraform_address": "aws_scheduler_schedule.weekly",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "group_name/schedule_name",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/scheduler_schedule.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    },
+    {
+      "stack": "reports",
+      "logical_id": "WorkQueue",
+      "terraform_address": "aws_sqs_queue.work",
+      "strategy": "import",
+      "import_id": null,
+      "import_id_format": "queue_url",
+      "provider_documentation": "https://github.com/hashicorp/terraform-provider-aws/blob/v6.70.0/website/docs/r/sqs_queue.html.markdown",
+      "notes": "Existing physical ID/configuration must be inventoried; no recreation authorized."
+    }
+  ]
+}
