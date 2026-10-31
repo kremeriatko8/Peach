@@ -42,6 +42,8 @@ Parameters:
     AllowedValues: ['true', 'false']
 Resources:
   Role:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::IAM::Role
     Properties:
       # Administrator creates this boundary policy separately; operator cannot edit it.
@@ -64,11 +66,15 @@ Resources:
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !GetAtt LogGroup.Arn
   LogGroup:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/lambda/${ProjectName}-agenda-parser'
       RetentionInDays: 7
   Parser:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${ProjectName}-agenda-parser'
@@ -94,6 +100,8 @@ Resources:
           PARSER_INPUT_USD_PER_MILLION: !Ref InputUsdPerMillion
           PARSER_OUTPUT_USD_PER_MILLION: !Ref OutputUsdPerMillion
   Url:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Lambda::Url
     Properties:
       TargetFunctionArn: !Ref Parser
@@ -104,6 +112,8 @@ Resources:
         AllowHeaders: [authorization, content-type]
         MaxAge: 300
   UrlPermission:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref Parser
@@ -111,6 +121,8 @@ Resources:
       Principal: '*'
       FunctionUrlAuthType: NONE
   InvokePermission:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref Parser

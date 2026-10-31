@@ -1,0 +1,33 @@
+{
+  "auth": [
+    "UserPoolId",
+    "UserPoolClientId",
+    "CognitoDomainPrefix",
+    "CognitoDomain",
+    "Authority",
+    "GoogleAuthorizedJavaScriptOrigin",
+    "GoogleAuthorizedRedirectUri",
+    "FrontendCallbackUrl",
+    "LocalhostCallbackUrl",
+    "FrontendLogoutUrl",
+    "LocalhostLogoutUrl",
+    "GoogleFederationEnabled"
+  ],
+  "reports": [
+    "WorkQueueUrl",
+    "WorkQueueArn",
+    "BuilderDlqUrl",
+    "SchedulerDlqUrl",
+    "MailerFailureQueueUrl",
+    "ReportsBucketName",
+    "BuilderFunctionName",
+    "MailerFunctionName",
+    "ScheduleName",
+    "ScheduleGroupName",
+    "MailStateTableName"
+  ],
+  "ai": [
+    "ParserUrl",
+    "FunctionName"
+  ]
+}

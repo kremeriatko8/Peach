@@ -1,0 +1,18 @@
+{
+  "run_url": "https://app.terraform.io/app/ooad-kremeriatko8/peach-dev/runs/run-imy3iE9GiZh9i2WD",
+  "status": "planned_and_finished",
+  "plan_only": true,
+  "imports": 41,
+  "additions": 0,
+  "updates": 4,
+  "replacements": 0,
+  "destructions": 0,
+  "diagnostic_errors": 0,
+  "warnings": 0,
+  "all_import_ids_match": true,
+  "all_five_authoritative_values_match_full_plan_before_and_after": true,
+  "all_four_updated_resource_values_equal": true,
+  "update_cause": "sensitivity-metadata-only",
+  "acceptance_criteria_met": false,
+  "remote_state_version_absent": true
+}
