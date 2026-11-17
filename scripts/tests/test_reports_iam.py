@@ -286,7 +286,8 @@ def test_automatic_backend_workflow_has_no_reporting_deployment():
         (ROOT / ".github/workflows/deploy-backend.yml").read_text(),
         Loader=yaml.BaseLoader,
     )
-    assert workflow["on"]["push"]["branches"] == ["main"]
+    # Lab 9: the API moved to Cloud Run; the AWS release runs by hand only.
+    assert list(workflow["on"]) == ["workflow_dispatch"]
     assert workflow["jobs"]["deploy"]["needs"] == "validate"
     text = (ROOT / ".github/workflows/deploy-backend.yml").read_text()
     assert "make deploy-backend" in text

@@ -53,3 +53,6 @@ override.tf.json
 infra/generated.tf
 infra/migration-private/
 # Keep infra/.terraform.lock.hcl and non-secret infra/terraform.tfvars tracked.
+
+# Lab 9 gcp/: per-person project values; copy from terraform.tfvars.example.
+gcp/terraform.tfvars

@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars (or set as HCP workspace variables). Nothing here is secret.
+project_id = "peach-yourname-2026"
+region     = "us-central1"
+
+# Public Cognito values from the AWS side (sign-in stays on AWS):
+#   cd infra && terraform output -json auth
+cognito_authority = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_XXXXXXXXX"
+cognito_client_id = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
+# cognito_jwks_json = file("jwks.json") is not allowed in tfvars; pass with
+#   -var "cognito_jwks_json=$(curl -fsS <authority>/.well-known/jwks.json)"
+
+# "NEVER" stops the instance (only storage is billed), "ALWAYS" starts it.
+db_activation_policy = "ALWAYS"

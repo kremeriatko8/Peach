@@ -1,8 +1,9 @@
 name: Deploy backend
 
+# Lab 9: the public API now runs on Cloud Run (see gcp/ and README "Deploying to
+# Google Cloud"). This AWS release path no longer runs on every push to main,
+# because the Lambda image has no HTTP handler any more; run it by hand only.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -83,7 +84,7 @@ jobs:
             --entrypoint python \
             -e DATABASE_URL="$DATABASE_URL" -e APP_ENV=test \
             peach-backend:validation -c \
-            'import app.lambda_handler, app.migration_handler, app.reporting.builder, app.reporting.mailer'
+            'import app.migration_handler, app.reporting.builder, app.reporting.mailer, app.ai.agenda_lambda'
 
   deploy:
     if: github.ref == 'refs/heads/main'

@@ -1,5 +1,10 @@
 # Peach
 
+> **Lab 9 — Google Cloud:** the core (frontend, API, Postgres) also deploys to
+> Google Cloud: Firebase Hosting → Cloud Run → Cloud SQL, Terraform in `gcp/`. Sign-in,
+> weekly report, agenda parser and SES stay on AWS. See
+> [Deploying the core to Google Cloud](#13b-deploying-the-core-to-google-cloud-lab-9).
+
 > **Lab 7 — Terraform:** Cognito, weekly reporting and the agenda parser are
 > managed by HCP Terraform (workspace `ooad-kremeriatko8/peach-dev`, root module
 > `infra/`). They were imported from CloudFormation on 2026-10-31 without being
@@ -108,7 +113,7 @@ Peach/
 │   │   ├── main.py               # FastAPI app factory, router + middleware wiring
 │   │   ├── config.py             # Settings (pydantic-settings), cached accessor
 │   │   ├── db.py                 # async engine, session factory, get_session dependency
-│   │   ├── lambda_handler.py     # HTTP Lambda entry: function URL -> Mangum
+│   │   ├── (lambda_handler.py)   # removed in Lab 9: the API runs on Cloud Run, no adapter
 │   │   ├── models/
 │   │   │   ├── __init__.py
 │   │   │   └── item.py           # placeholder ORM model
@@ -585,6 +590,127 @@ sensitive workspace variables, never `terraform.tfvars`.
 first: merge and apply the Terraform change, then ship application code that
 relies on it. Lambda image digests for the builder, mailer and parser are Terraform
 inputs, so releasing a new reporting or parser image is a Terraform change too.
+
+## 13b. Deploying the core to Google Cloud (Lab 9)
+
+Frontend, API and database run on Google Cloud; sign-in, the weekly report, the
+agenda parser and e-mail stay on AWS. Service choices and reasons:
+[ADR 0008](docs/adr/0008-gcp-service-choices.md). Costs:
+[docs/lab9-costs.md](docs/lab9-costs.md).
+
+```
+browser ──► Firebase Hosting (static export, CDN, HTTPS)
+              └─ /api/** rewrite ──► Cloud Run  peach-api  (min 0, max 2, SA peach-api)
+                                        └─ unix socket /cloudsql/… ──► Cloud SQL  peach-db
+                                                                        (Postgres 17, db-f1-micro, 10 GB SSD)
+                                        └─ DB_PASSWORD ◄── Secret Manager  peach-db-password
+browser ──► Cognito (AWS) for sign-in; Cloud Run checks the Cognito access token itself
+```
+
+`gcp/` is its own Terraform root with its own state (HCP workspace
+`ooad-kremeriatko8/peach-gcp`), so a plan in `infra/` (AWS) can't touch GCP and back.
+It enables the APIs it needs, and creates Artifact Registry, Cloud SQL + database +
+user, a random DB password in Secret Manager, the `peach-api` service account (only
+`roles/cloudsql.client` and `secretmanager.secretAccessor` on that one secret) and
+the Cloud Run service. No service-account keys, no Owner/Editor, not the default
+compute service account.
+
+### Deploy, in order
+
+Needs `gcloud`, `terraform` ≥ 1.13.5, Docker with buildx, `pnpm`, and
+`npm i -g firebase-tools`. A budget alert ($5/month) is set in the console first.
+
+```bash
+# 0. Sign in as yourself (application default credentials; no key file).
+export PROJECT_ID=peach-yourname-2026 REGION=us-central1
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project "$PROJECT_ID"
+# Terraform can enable every other API, but needs these two to do it.
+gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com
+
+# 1. Terraform state: create HCP workspace "peach-gcp" with Execution Mode = Local
+#    (state in HCP, runs on your laptop with your ADC). Then:
+cd gcp
+cp terraform.tfvars.example terraform.tfvars      # set project_id and the Cognito values
+terraform login                                   # once
+terraform init
+
+# 2. APIs and the registry first, so there is somewhere to push the image.
+terraform apply -target=google_project_service.enabled \
+                -target=google_artifact_registry_repository.api
+
+# 3. Build and push the API image. Cloud Run runs linux/amd64.
+TAG="$(git rev-parse --short HEAD)"
+REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/peach"
+gcloud auth configure-docker "${REGION}-docker.pkg.dev"
+docker buildx build --platform linux/amd64 --target runtime \
+  --provenance=false -t "${REPO}/api:${TAG}" --push ../backend
+
+# 4. Everything else: Cloud SQL (takes ~10 min), secret, service account, Cloud Run.
+AUTHORITY="$(terraform -chdir=../infra output -json auth_outputs | python3 -c 'import json,sys; print(json.load(sys.stdin)["Authority"])')"
+terraform apply -var "api_image_tag=${TAG}" \
+  -var "cognito_jwks_json=$(curl -fsS "${AUTHORITY}/.well-known/jwks.json")"
+
+# 5. The API starts, runs `alembic upgrade head` on the empty database, and answers:
+API_URL="$(terraform output -raw api_url)"
+curl -fsS "${API_URL}/api/v1/health/ready"        # {"status":"ok","database":"ok"}
+cd ..
+
+# 6. Frontend on Firebase Hosting. firebase.json rewrites /api/** to peach-api,
+#    so the build uses an empty API base (same origin, no CORS).
+firebase login
+firebase projects:addfirebase "$PROJECT_ID"
+sed -i.bak "s/REPLACE-WITH-PROJECT-ID/${PROJECT_ID}/" .firebaserc && rm .firebaserc.bak
+(cd frontend && pnpm install --frozen-lockfile \
+  && rm -rf out && NEXT_OUTPUT=export NEXT_PUBLIC_API_URL= pnpm build)
+firebase deploy --only hosting
+
+# 7. Check through the rewrite, then open https://$PROJECT_ID.web.app in a private window.
+curl -fsS "https://${PROJECT_ID}.web.app/api/v1/health/ready"
+```
+
+Schema/data: we ran the migrations against the empty Cloud SQL database (the
+container does it on start), not a `pg_dump` from Aurora; the AWS data is test data.
+
+Releasing a new API version: repeat step 3 with a new tag and
+`terraform apply -var api_image_tag=<tag>` (with the same Cognito vars).
+
+Sign-in on the Firebase site (stretch): add `https://$PROJECT_ID.web.app` to the
+Cognito callback/logout URLs (`frontend_origin` in `infra/`), then build the
+frontend with the public Cognito values from
+`AUTH_EXPECTED_SITE_URL=https://$PROJECT_ID.web.app scripts/auth-config.sh deployed`.
+
+### What still runs on AWS
+
+- **Cognito** user pool + Google federation (sign-in). The API on Cloud Run only
+  needs its public issuer, client id and JWKS.
+- **Weekly report**: EventBridge Scheduler → SQS → builder Lambda → S3 → mailer
+  Lambda → **SES**, DynamoDB dedup table.
+- **Agenda parser**: Lambda + function URL on Bedrock (Nova Lite).
+- The migration runner Lambda and the old Aurora/Lambda API stacks (CloudFormation)
+  until they're deleted. `.github/workflows/deploy-backend.yml` is now manual-only:
+  the Lambda image no longer has an HTTP handler.
+
+### Stop and start the database
+
+Cloud SQL never pauses. Running costs $0.0105/h (≈ $7.67/month); stopped, only the
+10 GB SSD is billed ($1.70/month).
+
+```bash
+# Stop / start with gcloud (immediate):
+gcloud sql instances patch peach-db --activation-policy=NEVER    # stop
+gcloud sql instances patch peach-db --activation-policy=ALWAYS   # start (a few minutes)
+gcloud sql instances describe peach-db --format='value(state,settings.activationPolicy)'
+
+# Or keep Terraform as the source of truth (set the same value in terraform.tfvars,
+# otherwise the next apply starts it again):
+terraform -chdir=gcp apply -var db_activation_policy=NEVER  -var "api_image_tag=${TAG}" ...
+```
+
+While the database is stopped the API cannot start (migrations run first) and
+returns errors; start the database before a demo. `terraform -chdir=gcp destroy`
+removes everything Lab 9 created and brings the bill to $0.
 
 ## Cognito authentication
 

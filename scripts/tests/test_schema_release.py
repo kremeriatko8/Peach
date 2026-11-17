@@ -123,9 +123,8 @@ def test_workflow_validates_before_obtaining_deploy_credentials():
         (ROOT / ".github/workflows/deploy-backend.yml").read_text(),
         Loader=yaml.BaseLoader,
     )
-    assert workflow["on"]["push"]["branches"] == ["main"]
-    assert "workflow_dispatch" in workflow["on"]
-    assert "paths" not in workflow["on"]["push"]
+    # Lab 9: the API moved to Cloud Run; the AWS release runs by hand only.
+    assert list(workflow["on"]) == ["workflow_dispatch"]
     assert workflow["concurrency"]["cancel-in-progress"] == "false"
     jobs = workflow["jobs"]
     assert jobs["deploy"]["needs"] == "validate"

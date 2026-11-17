@@ -35,7 +35,10 @@ EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 
-# --- runtime ---
+# --- runtime: what runs locally (docker run) and on Cloud Run ---
+# Cloud Run sends plain HTTP to $PORT (8080); locally the entrypoint defaults to
+# 8000. On Cloud Run the database is reached through the unix socket mounted at
+# /cloudsql/<instance-connection-name> (see app/config.py).
 FROM python:3.14-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
@@ -53,12 +56,17 @@ COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --chown=app:app . .
 
 USER app
+ENV PORT=8000
 EXPOSE 8000
 
 CMD ["./scripts/entrypoint.sh"]
 
 
-# --- lambda: what scripts/deploy-backend.sh ships to AWS Lambda ---
+# --- lambda: the image for the functions that stay on AWS (Lab 9) ---
+# Agenda parser, weekly report builder/mailer and the migration runner. The
+# public HTTP API moved to Cloud Run (runtime stage above), so there is no
+# Mangum adapter and no default HTTP handler any more: every function sets its
+# own command (infra/ai.tf, infra/reports.tf, infra/migrations.yaml).
 # AWS's base image carries the runtime interface client. The virtualenv from
 # the builder cannot be reused here - it points at /usr/local/bin/python - so
 # the locked dependencies are installed straight into the task root instead.
@@ -76,4 +84,4 @@ COPY app ${LAMBDA_TASK_ROOT}/app
 COPY migrations ${LAMBDA_TASK_ROOT}/migrations
 COPY alembic.ini ${LAMBDA_TASK_ROOT}/
 
-CMD ["app.lambda_handler.handler"]
+CMD ["app.ai.agenda_lambda.handler"]

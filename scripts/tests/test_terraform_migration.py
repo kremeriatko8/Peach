@@ -297,7 +297,8 @@ def test_publication_checks_cannot_run_application_deploy():
     assert "terraform apply" not in text and "terraform import" not in text
     deploy = yaml.safe_load((ROOT / ".github/workflows/deploy-backend.yml").read_text())
     deploy_triggers = deploy.get("on", deploy.get(True))
-    assert deploy_triggers["push"]["branches"] == ["main"]
+    # Lab 9: the API moved to Cloud Run; the AWS release runs by hand only.
+    assert "push" not in deploy_triggers
     assert "pull_request" not in deploy_triggers
 
 

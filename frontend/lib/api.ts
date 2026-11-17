@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 /** Browser code must reach the API through the published port; server components
- *  resolve the Compose service name instead. */
+ *  resolve the Compose service name instead.
+ *
+ *  On Firebase Hosting (Lab 9) the build sets NEXT_PUBLIC_API_URL to the empty
+ *  string: every path already starts with /api/, and firebase.json rewrites
+ *  /api/** to the Cloud Run service, so the browser calls its own origin (no CORS).
+ *  `??` (not `||`) keeps that empty string instead of falling back to localhost. */
 export function apiBaseUrl(): string {
   if (typeof window === "undefined") {
     return process.env.INTERNAL_API_URL ?? "http://backend:8000";

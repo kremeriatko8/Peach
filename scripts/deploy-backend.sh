@@ -209,7 +209,7 @@ IMAGE_URI="${REGISTRY}/${ECR_REPOSITORY}@${IMAGE_DIGEST}"
 # Verify the exact published digest, not merely a similar local build, before DDL.
 # Network is disabled in the container: these imports and the 401 check cannot infer.
 docker run --rm --network none --entrypoint python "${IMAGE_URI}" -c '
-import app.lambda_handler, app.reporting.builder, app.reporting.mailer
+import app.reporting.builder, app.reporting.mailer
 from app.migration_handler import EXPECTED_REVISION
 from app.ai.agenda_lambda import handler
 assert EXPECTED_REVISION == "0005"
