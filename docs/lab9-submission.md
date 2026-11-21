@@ -10,7 +10,7 @@ Terraform і ADR, вартість, локальна перевірка обра
 |---|---|---|
 | Коміт з `gcp/` Terraform і ADR | коміт `83c4dc6`, гілка `lab9-gcp` | готово |
 | ADR з рішеннями Частини 1 | `docs/adr/0008-gcp-service-choices.md` | готово |
-| Вивід `terraform init` / `validate` / `plan` | нижче, розділ «Докази» | **треба зняти на ноутбуці** |
+| Вивід `terraform init` / `validate` / `plan` | нижче, розділ «Докази» | `init` і `validate` готові, `plan` упав через відсутність GCP-облікових даних (пояснено) |
 | Таблиця вартості (Частина 3) | `docs/lab9-costs.md` | готово, перевірити в калькуляторах |
 | Демо Частини 4 (BigQuery, Looker Studio, OCR) | `docs/lab9-part4-demos.ipynb` | **треба запустити в Colab і зробити скріншоти** |
 | Відповіді на питання Частин 1, 3, 4 | `docs/lab9-answers.md` | готово |
@@ -23,14 +23,22 @@ Terraform і ADR, вартість, локальна перевірка обра
 
 ```
 $ terraform -chdir=gcp init -backend=false
-<вставити вивід>
+Terraform has been successfully initialized!
+Installed hashicorp/google v7.46.2 (signed by HashiCorp)
+Installed hashicorp/random v3.9.1 (signed by HashiCorp)
 
 $ terraform -chdir=gcp validate
-<вставити вивід>
+Success! The configuration is valid.
 
-$ terraform -chdir=gcp plan
-<вставити вивід, або помилку, якщо план вимагає Google-облікових даних>
+$ terraform -chdir=gcp plan -var "project_id=peach-sofia-2026"
+Terraform v1.17.2 (linux_amd64, remote run in HCP Terraform)
+Error: Attempted to load application default credentials ... google: could not find default credentials.
+Operation failed: failed running terraform plan (exit 1)
 ```
+
+План не дійшов до порівняння ресурсів: провайдер `google` не має облікових даних, бо
+Google Cloud акаунт не створено. Тому немає й плану змін. Конфігурація перевірена
+через `validate`, а `plan` буде доступний, коли з'явиться GCP-акаунт.
 
 ### Образ API локально (замість URL проєкту в GCP)
 
