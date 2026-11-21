@@ -76,7 +76,13 @@ Alembic. Після того, як `backend` став healthy, `/health` від�
 
 - Colab-ноутбук: `docs/lab9-part4-demos.ipynb` (завантажити в Colab, замінити `PROJECT_ID`, Run all).
 - Посилання на копію ноутбука в Colab: <вставити>
-- BigQuery-запит з обсягом байтів: <скріншот>
+- Colab запущено з `PROJECT_ID=peach-lab9-2026-515107`, без помилок. Виводи:
+  - `Connected to peach-lab9-2026-515107`
+  - BigQuery, публічний датасет `samples.shakespeare`: `Запит прочитає 2.65 MB`, топ-10 слів (`the` 25568, `I` 21028, …)
+  - OWID CO₂ після фільтра (країни з ISO-кодом, з 1950 року): `(16948, 6)`
+  - `Loaded 16948 rows into peach-lab9-2026-515107.peach_lab9.owid_co2`
+  - Топ-10 викидів у 2021: Китай 11 304.717 Mt, США 5 018.117, Індія 2 670.357, …
+- BigQuery-запит з результатом: <скріншот>
 - Looker Studio, публічний звіт: <посилання і скріншот>
 - OCR (Vision API або Document AI): <не зроблено; вирішити, чи робити>
 
