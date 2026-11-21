@@ -30,17 +30,31 @@ Installed hashicorp/random v3.9.1 (signed by HashiCorp)
 $ terraform -chdir=gcp validate
 Success! The configuration is valid.
 
-$ terraform -chdir=gcp plan -var "project_id=peach-sofia-2026"
-Terraform v1.17.2 (linux_amd64, remote run in HCP Terraform)
-Error: Attempted to load application default credentials ... google: could not find default credentials.
-Operation failed: failed running terraform plan (exit 1)
+$ terraform plan -var "project_id=peach-lab9-2026-515107"
+Terraform used the selected providers to generate the following execution plan.
+Plan: 18 to add, 0 to change, 0 to destroy.
+
+  + google_artifact_registry_repository.api     (repository "peach", us-central1, DOCKER)
+  + google_cloud_run_v2_service.api             (peach-api, min 0, max 2, 512Mi, cpu_idle)
+  + google_cloud_run_v2_service_iam_member.public
+  + google_project_iam_member.api_cloudsql_client
+  + google_project_service.enabled              (artifactregistry, firebasehosting, iam, run, secretmanager, sqladmin)
+  + google_secret_manager_secret.db_password    (peach-db-password)
+  + google_secret_manager_secret_iam_member.api_db_password
+  + google_secret_manager_secret_version.db_password
+  + google_service_account.api                  (peach-api)
+  + google_sql_database.app                     (peach)
+  + google_sql_database_instance.db             (peach-db, POSTGRES_17, db-f1-micro, 10 GB SSD)
+  + google_sql_user.app                         (peach)
+  + random_password.db
 ```
 
-План не дійшов до порівняння ресурсів: провайдер `google` не має облікових даних, бо
-Google Cloud акаунт не створено. Тому немає й плану змін. Конфігурація перевірена
-через `validate`, а `plan` буде доступний, коли з'явиться GCP-акаунт.
+План виконано локально з облікових даних `gcloud auth application-default`, проєкт
+`peach-lab9-2026-515107`. Пароль БД у плані позначений як `sensitive`, у вивід не
+потрапляє. `terraform apply` ще не запускався: він створить ресурси з білінгом, а образ
+`api:latest` у Artifact Registry ще не запушено. Це кроки 2–4 README.
 
-### Образ API локально (замість URL проєкту в GCP)
+## Образ API локально (замість URL проєкту в GCP)
 
 ```
 $ docker compose up -d --build db backend
