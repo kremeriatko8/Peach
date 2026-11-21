@@ -96,3 +96,16 @@ Alembic. Після того, як `backend` став healthy, `/health` від�
 - Pandas-частина ноутбука перевірена на вихідному CSV Our World in Data (топ-10 за 2021 рік отримано).
 - BigQuery-частини ноутбука в цьому середовищі не запускались: немає доступу до BigQuery.
 - Таблиці вартості розраховані вручну з цін зі сторінки лаби. Їх треба звірити з Pricing Calculator.
+
+## Локальний запуск API і фронтенда (замість URL Cloud Run)
+
+GCP-проєкт не розгорнуто, тому перевірка зроблена локально в режимі, як на Cloud Run.
+
+- Образ: `docker build --target runtime -t peach-api:cloudrun-local ./backend`. Це runtime-етап без Lambda-адаптера (етап `lambda` лишається тільки для функцій, що лишаються на AWS).
+- Запуск: `docker run -d --name peach-api-8080 --network peach_peach -e PORT=8080 -e APP_ENV=development -e DATABASE_URL='postgresql+asyncpg://peach:peach@db:5432/peach' -p 8080:8080 peach-api:cloudrun-local`. Міграції виконуються при старті, логи показують `starting uvicorn on port 8080`.
+- `curl http://localhost:8080/health` → `{"status":"ok"}`
+- `curl http://localhost:8080/api/v1/health/ready` → `{"status":"ok","database":"ok"}`
+- Фронтенд: `NEXT_PUBLIC_API_URL=http://localhost:8080 npm run dev`, сторінка на `http://localhost:3000`.
+- Скріншот: `docs/evidence/lab9-local-frontend-api.png`. Лендінг завантажився з `localhost:3000`, а запит з консолі браузера до `localhost:8080/api/v1/health/ready` повернув `database: ok`.
+
+Примітка: `localhost:3000` тут показує локальну збірку, а не AWS-версію (`cloudfront.net`), у якій API зараз недоступний.
