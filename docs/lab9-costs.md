@@ -12,9 +12,11 @@ reports, parser and SES stay on AWS in both columns, so they cancel out.
 | Frontend + CDN + HTTPS | CloudFront Free plan, WAF included → $0 | Firebase Hosting free → $0 |
 | API | Lambda (arm64, 512 MB), idle → $0 | Cloud Run, min 0 → $0 |
 | Database compute | Aurora, paused → $0 | Cloud SQL db-f1-micro running, 730 h × $0.0105 → **$7.67** |
-| Database storage | ~1 GB × $0.10 → $0.10 | 10 GB SSD × $0.17 → $1.70 |
+| Database storage | ~1 GB × $0.10 → $0.10 | 11 GB SSD × $0.17 → $1.87 |
 | Registry, secrets, logs | ECR + logs ≈ $0.20 | ≈ 96 MB image × 3 kept < 0.5 GB; 1 secret; logs < 50 GiB → $0 |
-| **Total** | **≈ $0.30** | **≈ $9.37**, or **$1.70** with the instance stopped |
+| **Total** | **≈ $0.30** | **≈ $9.41**, or **$1.87** with the instance stopped |
+
+Google Cloud column checked in the Pricing Calculator (PostgreSQL, db-f1-micro, us-central1, 730 h, 11 GB SSD): **$9.41/month**. The calculator does not accept less than 10.74 GB for PostgreSQL, so storage is 11 GB here (the Terraform config uses 10 GB; the difference is about $0.17/month).
 
 ## Assumptions
 
@@ -35,10 +37,10 @@ reports, parser and SES stay on AWS in both columns, so they cancel out.
 
 | Profile | Use | AWS: Aurora | AWS: other | **AWS total** | GCP: Cloud SQL always on | GCP: Cloud SQL stopped outside use | GCP: Cloud Run | **GCP total** (always on / stopped) |
 |---|---|---|---|---|---|---|---|---|
-| Nobody | 0 h | $0 | $0.30 | **$0.30** | $9.37 | $1.70 | $0 | **$9.37 / $1.70** |
-| Class demos | 10 × 2 h = 20 h (≈ 21 h awake) | 21 × $0.06 = $1.26 | $0.30 | **$1.56** | $9.37 | 20 × $0.0105 + $1.70 = $1.91 | $0 | **$9.37 / $1.91** |
-| Office hours | 8 h × 22 d = 176 h (≈ 178 h awake) | 178 × $0.06 = $10.68 | $0.30 | **$10.98** | $9.37 | 176 × $0.0105 + $1.70 = $3.55 | $0 | **$9.37 / $3.55** |
-| Busy 24/7 | 730 h, 2.63M req | 730 × $0.12 = $87.60 (at 0.5 ACU: $43.80) | $0.30 + Lambda $0.33 | **$88.23** ($44.43) | $9.37 | — (can't stop) | $2.24 | **$11.61** |
+| Nobody | 0 h | $0 | $0.30 | **$0.30** | $9.41 | $1.87 | $0 | **$9.41 / $1.87** |
+| Class demos | 10 × 2 h = 20 h (≈ 21 h awake) | 21 × $0.06 = $1.26 | $0.30 | **$1.56** | $9.41 | 20 × $0.0105 + $1.87 = $2.08 | $0 | **$9.41 / $2.08** |
+| Office hours | 8 h × 22 d = 176 h (≈ 178 h awake) | 178 × $0.06 = $10.68 | $0.30 | **$10.98** | $9.41 | 176 × $0.0105 + $1.87 = $3.72 | $0 | **$9.41 / $3.72** |
+| Busy 24/7 | 730 h, 2.63M req | 730 × $0.12 = $87.60 (at 0.5 ACU: $43.80) | $0.30 + Lambda $0.33 | **$88.23** ($44.43) | $9.41 | — (can't stop) | $2.24 | **$11.61** |
 
 Lambda busy: (2.63M − 1M) × $0.20/M = $0.33; GB-s 131k < 400k free.
 Cloud Run busy: (2.63M − 2M) × $0.40/M = $0.25 + (263k − 180k) vCPU-s × $0.000024 = $1.99;
@@ -50,9 +52,9 @@ cheaper than Aurora at 1 ACU.
 
 | Profile | Cheaper | Deciding line |
 |---|---|---|
-| Nobody | **AWS** ($0.30 vs $1.70 even with Cloud SQL stopped) | DB: Aurora pauses to $0; Cloud SQL still bills its 10 GB SSD minimum while stopped |
-| Class demos | **AWS** ($1.56 vs $1.91 stopped / $9.37 always on) | DB compute: Aurora bills only ~21 awake hours, automatically |
-| Office hours | **GCP** ($9.37 always on, $3.55 stopped vs $10.98) | DB compute: past ≈ 150 awake hours/month (($9.37 − $0.30) ÷ $0.06), a flat always-on instance beats ACU-hours |
+| Nobody | **AWS** ($0.30 vs $1.87 even with Cloud SQL stopped) | DB: Aurora pauses to $0; Cloud SQL still bills its 11 GB SSD minimum while stopped |
+| Class demos | **AWS** ($1.56 vs $2.08 stopped / $9.41 always on) | DB compute: Aurora bills only ~21 awake hours, automatically |
+| Office hours | **GCP** ($9.41 always on, $3.72 stopped vs $10.98) | DB compute: past ≈ 150 awake hours/month (($9.41 − $0.30) ÷ $0.06), a flat always-on instance beats ACU-hours |
 | Busy 24/7 | **GCP** ($11.61 vs $44–88) | DB compute: 1 ACU-hour costs 11× a db-f1-micro hour |
 
 **The single line is database compute in every profile.** Frontend and API are $0 or
@@ -71,7 +73,7 @@ On GCP:
 
 1. **Cloud SQL is "kept awake" by default.** There's no pause at all, so the trap is not
    a stray connection but forgetting to stop it: $7.67/month idle, and the most common
-   surprise on a student bill. Stopping still leaves $1.70 of storage; only
+   surprise on a student bill. Stopping still leaves $1.87 of storage; only
    `terraform destroy` gets to $0.
 2. **Cloud Run kept awake.** `min_instance_count = 1` or instance-based billing
    (`cpu_idle = false`, "CPU always allocated") turns a $0 idle API into one billed
