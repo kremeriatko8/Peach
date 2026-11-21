@@ -1,7 +1,7 @@
 # ADR 0008: GCP service choices for Peach (Lab 9)
 
 Date: 2026-11-17
-Status: Accepted (code and Terraform written; not yet applied, waiting for GCP billing)
+Status: Accepted (code and Terraform written; not applied. Lab 9 alternative path: no GCP account, so nothing ran on Google Cloud. See docs/lab9-submission.md)
 
 ## Context
 
@@ -75,3 +75,4 @@ and read by its own service account, never in the repository.
   `gcloud` command (README). Storage ($1.70) is billed even when stopped.
 - Peach is now multicloud: frontend + API + DB on GCP; auth, reports, parser, e-mail on AWS.
   Cognito callback URLs must include the Firebase origin before sign-in works there.
+- **Not deployed.** The GCP side is checked locally instead: `terraform validate` for `gcp/`, and the API image run with Docker Compose. The deploy steps in the README are the procedure for a real project.

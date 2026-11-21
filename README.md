@@ -615,6 +615,20 @@ user, a random DB password in Secret Manager, the `peach-api` service account (o
 the Cloud Run service. No service-account keys, no Owner/Editor, not the default
 compute service account.
 
+### Status: not deployed (Lab 9 alternative path)
+
+Nothing in this section has run on Google Cloud: a Free Trial account could not be
+created for this course. What is checked instead:
+
+```bash
+terraform -chdir=gcp init -backend=false    # no HCP state needed for a check
+terraform -chdir=gcp validate
+docker compose up -d --build db backend     # the API image, listening on port 8000
+curl -fsS http://localhost:8000/health
+```
+
+The steps below are the procedure for a real project.
+
 ### Deploy, in order
 
 Needs `gcloud`, `terraform` ≥ 1.13.5, Docker with buildx, `pnpm`, and
