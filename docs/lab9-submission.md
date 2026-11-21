@@ -63,6 +63,8 @@ backend-1   Up (healthy)   0.0.0.0:8000->8000/tcp
 db-1        Up (healthy)   0.0.0.0:5432->5432/tcp
 $ curl -fsS http://localhost:8000/health
 {"status":"ok"}
+$ curl -fsS http://localhost:8000/api/v1/health/ready
+{"status":"ok","database":"ok"}
 
 Перша спроба дала `Empty reply from server`: контейнер ще застосовував міграції
 Alembic. Після того, як `backend` став healthy, `/health` відповідає.
