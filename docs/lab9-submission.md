@@ -12,7 +12,7 @@ Terraform і ADR, вартість, локальна перевірка обра
 | ADR з рішеннями Частини 1 | `docs/adr/0008-gcp-service-choices.md` | готово |
 | Вивід `terraform init` / `validate` / `plan` | нижче, розділ «Докази» | `init` і `validate` готові, `plan` упав через відсутність GCP-облікових даних (пояснено) |
 | Таблиця вартості (Частина 3) | `docs/lab9-costs.md` | готово, перевірити в калькуляторах |
-| Демо Частини 4 (BigQuery, Looker Studio, OCR) | `docs/lab9-part4-demos.ipynb` | **треба запустити в Colab і зробити скріншоти** |
+| Демо Частини 4 (BigQuery, Looker Studio, OCR) | `docs/lab9-part4-demos.ipynb` | Colab запущено, звіт Looker Studio готовий; OCR не робили |
 | Відповіді на питання Частин 1, 3, 4 | `docs/lab9-answers.md` | готово |
 
 Гілка з усім: https://github.com/kremeriatko8/Peach/tree/lab9-gcp
@@ -83,7 +83,11 @@ Alembic. Після того, як `backend` став healthy, `/health` від�
   - `Loaded 16948 rows into peach-lab9-2026-515107.peach_lab9.owid_co2`
   - Топ-10 викидів у 2021: Китай 11 304.717 Mt, США 5 018.117, Індія 2 670.357, …
 - BigQuery-запит з результатом: <скріншот>
-- Looker Studio, публічний звіт: <посилання і скріншот>
+- Looker Studio, публічний звіт (відкривається без входу в акаунт):
+  https://datastudio.google.com/reporting/72ef8916-5e61-426f-97e5-69f1ca69094f
+  Три графіки з джерела `owid_co2`: лінія викидів 1950–2022 (світ, без фільтра),
+  карта `co2_per_capita` за 2021 рік, барчарт топ-10 `co2` за 2021 рік.
+  PDF-знімок станом на здачу: `docs/evidence/lab9-looker-report.pdf`.
 - OCR (Vision API або Document AI): <не зроблено; вирішити, чи робити>
 
 ## Що перевірено і як
